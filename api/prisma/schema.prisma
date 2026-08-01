@@ -1,0 +1,226 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// An owner / staff user. Belongs to one tenant, can own/operate many
+/// businesses. Auth is JWT; passwords are bcrypt-hashed here.
+model User {
+  email        String         @unique
+  createdAt    DateTime       @default(now())
+  fullName     String
+  isActive     Boolean        @default(true)
+  password     String
+  updatedAt    DateTime       @updatedAt
+  id           String         @id @default(cuid())
+  role         UserRole       @default(Staff)
+  Appointment  Appointment[]
+  AuditLog     AuditLog[]
+  Doctor       Doctor?
+  Notification Notification[]
+  QueueEntry   QueueEntry[]
+}
+
+/// Append-only audit log of meaningful business events ("booking created",
+/// "booking cancelled", "walk-in added"). Per AGENTS.md §13 every entry
+/// carries the requestId for correlation.
+model AuditLog {
+  id          BigInt   @id @default(autoincrement())
+  actorUserId String?
+  entity      String
+  entityId    BigInt?
+  action      String
+  /// Free-form JSON payload for the event.
+  payload     Json?
+  createdAt   DateTime @default(now())
+  User        User?    @relation(fields: [actorUserId], references: [id])
+}
+
+model Appointment {
+  id               BigInt            @id @default(autoincrement())
+  patientId        BigInt
+  doctorId         BigInt
+  appointmentStart DateTime
+  appointmentEnd   DateTime
+  createdByUserId  String
+  status           AppointmentStatus @default(Pending)
+  source           AppointmentSource @default(Online)
+  reason           String?
+  notes            String?
+  reminderSent     Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  User             User              @relation(fields: [createdByUserId], references: [id])
+  Doctor           Doctor            @relation(fields: [doctorId], references: [id])
+  Patient          Patient           @relation(fields: [patientId], references: [id])
+  Feedback         Feedback?
+  Notification     Notification[]
+  QueueEntry       QueueEntry?
+}
+
+model ClinicSetting {
+  id                            Int      @id @default(1)
+  clinicName                    String   @default("My Clinic")
+  address                       String?
+  contactPhone                  String?
+  contactEmail                  String?
+  timezone                      String   @default("UTC")
+  defaultConsultDurationMinutes Int      @default(15)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime
+}
+
+model Doctor {
+  id                     BigInt        @id @default(autoincrement())
+  userId                 String        @unique
+  displayName            String
+  specialization         String?
+  consultDurationMinutes Int           @default(15)
+  notes                  String?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime
+  Appointment            Appointment[]
+  User                   User          @relation(fields: [userId], references: [id])
+  DoctorShift            DoctorShift[]
+  Feedback               Feedback[]
+  QueueEntry             QueueEntry[]
+}
+
+model DoctorShift {
+  id        BigInt   @id @default(autoincrement())
+  doctorId  BigInt
+  weekday   Int
+  startTime DateTime
+  endTime   DateTime
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Doctor    Doctor   @relation(fields: [doctorId], references: [id])
+}
+
+model Feedback {
+  id            BigInt       @id @default(autoincrement())
+  appointmentId BigInt?      @unique
+  patientId     BigInt?
+  doctorId      BigInt?
+  rating        Int          @db.SmallInt
+  comment       String?
+  createdAt     DateTime     @default(now())
+  Appointment   Appointment? @relation(fields: [appointmentId], references: [id])
+  Doctor        Doctor?      @relation(fields: [doctorId], references: [id])
+  Patient       Patient?     @relation(fields: [patientId], references: [id])
+}
+
+model Notification {
+  id            BigInt              @id @default(autoincrement())
+  patientId     BigInt?
+  userId        String
+  appointmentId BigInt?
+  channel       NotificationChannel
+  template      String?
+  payload       Json?
+  status        NotificationStatus  @default(Pending)
+  sentAt        DateTime?
+  createdAt     DateTime            @default(now())
+  Appointment   Appointment?        @relation(fields: [appointmentId], references: [id])
+  Patient       Patient?            @relation(fields: [patientId], references: [id])
+  User          User                @relation(fields: [userId], references: [id])
+}
+
+model Patient {
+  id           BigInt         @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  middleName   String?
+  phone        String?
+  email        String?
+  gender       Gender?
+  dateOfBirth  DateTime?
+  address      String?
+  externalId   String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime
+  Appointment  Appointment[]
+  Feedback     Feedback[]
+  Notification Notification[]
+  QueueEntry   QueueEntry[]
+}
+
+model QueueEntry {
+  id                   BigInt       @id @default(autoincrement())
+  clinicQueueNumber    String
+  patientId            BigInt?
+  doctorId             BigInt?
+  appointmentId        BigInt?      @unique
+  queueNumber          Int
+  status               QueueStatus  @default(Waiting)
+  estimatedWaitMinutes Int?
+  origin               QueueOrigin  @default(Walk_in)
+  addedByUserId        String
+  calledAt             DateTime?
+  startedAt            DateTime?
+  finishedAt           DateTime?
+  createdAt            DateTime     @default(now())
+  User                 User         @relation(fields: [addedByUserId], references: [id])
+  Appointment          Appointment? @relation(fields: [appointmentId], references: [id])
+  Doctor               Doctor?      @relation(fields: [doctorId], references: [id])
+  Patient              Patient?     @relation(fields: [patientId], references: [id])
+}
+
+enum UserRole {
+  Admin
+  Staff
+  Doctor
+}
+
+enum AppointmentSource {
+  Online
+  Phone
+  Walk_in
+  Staff
+}
+
+enum AppointmentStatus {
+  Pending
+  Confirmed
+  Checked_In
+  In_Progress
+  Completed
+  Cancelled
+  No_Show
+}
+
+enum Gender {
+  Male
+  Female
+  Other
+}
+
+enum NotificationChannel {
+  Email
+  SMS
+  Push
+}
+
+enum NotificationStatus {
+  Pending
+  Sent
+  Failed
+}
+
+enum QueueOrigin {
+  Walk_in
+  Appointment
+  Remote_CheckIn
+}
+
+enum QueueStatus {
+  Waiting
+  Called
+  In_Progress
+  Completed
+  Skipped
+  Cancelled
+}
