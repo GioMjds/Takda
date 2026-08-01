@@ -258,7 +258,7 @@ Prisma model is the storage contract; do not let them drift silently.
   Real secrets never go in the repo.
 - Required services in dev: Postgres, Redis, an SMS provider key.
 - The API reads `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, and the SMS
-  provider key from `process.env`. The web reads `NEXT_PUBLIC_API_URL`.
+  provider key from `process.env`. The web reads `API_URL`.
   Anything that must reach the browser is `NEXT_PUBLIC_*`; anything else
   stays server-side.
 

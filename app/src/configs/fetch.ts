@@ -1,3 +1,6 @@
+import type { ZodType } from "zod";
+import { useAuthStore } from "@/stores/auth";
+
 export type HttpMethod =
   | "GET"
   | "POST"
@@ -51,36 +54,37 @@ export function handleActionError(error: unknown) {
   };
 }
 
-interface ApiResponse<T> {
-  data: T;
-  meta: {
-    timestamp: string;
-    version: string;
-  };
+export interface RequestOptions<TBody, TResponse> {
+  body?: TBody;
+  response: ZodType<TResponse>;
+  config?: FetchConfig;
 }
 
-function getBaseUrl(): unknown {
-  if (typeof window === "undefined") {
-    return process.env.NEXT_PUBLIC_API_URL;
+type ReadOnlyOptions<TResponse> = {
+  response: ZodType<TResponse>;
+  config?: FetchConfig;
+};
+
+type WriteOptions<TBody, TResponse> = {
+  body: TBody;
+  response: ZodType<TResponse>;
+  config?: FetchConfig;
+};
+
+function getBaseUrl(): string {
+  const base = process.env.API_URL;
+  if (!base) {
+    throw new ApiError("API_URL is not set", 0, null);
   }
-  return process.env.NEXT_PUBLIC_API_URL;
+  return base;
 }
 
-function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    "data" in value &&
-    "meta" in value &&
-    typeof (value as Record<string, unknown>).meta === "object"
-  );
-}
-
-async function fetchFactory<TResponse>(
+async function fetchFactory<TBody, TResponse>(
+  method: HttpMethod,
   path: string,
-  config: FetchConfig & { method: HttpMethod; body?: unknown } = {
-    method: "GET",
-  },
+  opts:
+    | WriteOptions<TBody, TResponse>
+    | (RequestOptions<TBody, TResponse> & { body?: undefined }),
 ): Promise<TResponse> {
   const base = getBaseUrl().replace(/\/+$/u, "");
 
@@ -89,25 +93,28 @@ async function fetchFactory<TResponse>(
     : `${base}/${path}`;
   const url = new URL(requestPath);
 
-  if (config.params) {
-    for (const [key, value] of Object.entries(config.params)) {
+  if (opts.config?.params) {
+    for (const [key, value] of Object.entries(opts.config.params)) {
       url.searchParams.append(key, String(value));
     }
   }
 
-  const fetchOptions = {
-    method: config.method,
-    headers: {
-      "Content-Type": "application/json",
-      ...config.headers,
-    },
-    body: config.body ? JSON.stringify(config.body) : undefined,
-    credentials: config.auth ? "include" : undefined,
-  } satisfies RequestInit;
+  const token = useAuthStore.getState().token;
+  const baseHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(opts.config?.auth && token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(opts.config?.headers as Record<string, string> | undefined),
+  };
 
-  if (config.cache) fetchOptions.cache = config.cache;
+  const fetchOptions: RequestInit & { next?: FetchConfig["next"] } = {
+    method,
+    headers: baseHeaders,
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    credentials: opts.config?.auth ? "include" : undefined,
+  };
 
-  if (config.next) fetchOptions.next = config.next;
+  if (opts.config?.cache) fetchOptions.cache = opts.config.cache;
+  if (opts.config?.next) fetchOptions.next = opts.config.next;
 
   let res: Response;
   try {
@@ -127,31 +134,13 @@ async function fetchFactory<TResponse>(
     if (contentType.includes("application/json")) {
       const errorData = await res.json().catch(() => null);
 
-      if (isApiResponse(errorData) && errorData.data) {
-        const message =
-          typeof errorData.data === "object" &&
-          errorData.data !== null &&
-          "message" in errorData.data
-            ? (errorData.data as Record<string, unknown>).message
-            : `Error ${res.status}`;
-        const details =
-          typeof errorData.data === "object" &&
-          errorData.data !== null &&
-          "details" in errorData.data
-            ? (errorData.data as Record<string, unknown>).details
-            : null;
-        throw new ApiError(
-          String(message) || `Error ${res.status}`,
-          res.status,
-          details as Record<string, string[]> | null,
-        );
-      }
-
       const rawMessage =
-        errorData?.error?.message ??
         errorData?.message ??
         (Array.isArray(errorData?.message) ? errorData.message[0] : null);
-      const message = rawMessage || `Error ${res.status}`;
+      const message =
+        typeof errorData?.message === "string"
+          ? errorData.message
+          : rawMessage || `Error ${res.status}`;
       const details = errorData?.error?.details ?? errorData?.errors ?? null;
       throw new ApiError(message, res.status, details);
     } else {
@@ -160,36 +149,81 @@ async function fetchFactory<TResponse>(
     }
   }
 
-  const json = await res.json().catch(() => null);
-
-  if (isApiResponse<TResponse>(json)) {
-    return json.data;
+  if (res.status === 204) {
+    const parsed = opts.response.safeParse(undefined);
+    if (!parsed.success) {
+      throw new ApiError(
+        "Response validation failed",
+        422,
+        formatIssues(parsed.error.issues),
+      );
+    }
+    return parsed.data as TResponse;
   }
 
-  return json as TResponse;
+  const json = await res.json().catch(() => null);
+  const parsed = opts.response.safeParse(json);
+  if (!parsed.success) {
+    throw new ApiError(
+      "Response validation failed",
+      422,
+      formatIssues(parsed.error.issues),
+    );
+  }
+  return parsed.data as TResponse;
+}
+
+type FormatIssues = {
+  path: PropertyKey[];
+  message: string;
+};
+
+function formatIssues(issues: FormatIssues[]): Record<string, string[]> {
+  const issueMap: Record<string, string[]> = {};
+  for (const issue of issues) {
+    const key = issue.path.map((p) => String(p)).join(".") || "_";
+    (issueMap[key] ??= []).push(issue.message);
+  }
+  return issueMap;
 }
 
 export const http = {
-  get: <TResponse>(path: string, config?: FetchConfig) =>
-    fetchFactory<TResponse>(path, { ...config, method: "GET" }),
+  get: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
+    fetchFactory<undefined, TResponse>("GET", path, {
+      ...opts,
+      body: undefined,
+    }),
 
-  post: <TResponse>(path: string, body?: unknown, config?: FetchConfig) =>
-    fetchFactory<TResponse>(path, { ...config, method: "POST", body }),
+  post: <TBody, TResponse>(
+    path: string,
+    opts: WriteOptions<TBody, TResponse>,
+  ) => fetchFactory<TBody, TResponse>("POST", path, opts),
 
-  put: <TResponse>(path: string, body: unknown, config?: FetchConfig) =>
-    fetchFactory<TResponse>(path, { ...config, method: "PUT", body }),
+  put: <TBody, TResponse>(path: string, opts: WriteOptions<TBody, TResponse>) =>
+    fetchFactory<TBody, TResponse>("PUT", path, opts),
 
-  patch: <TResponse>(path: string, body: unknown, config?: FetchConfig) =>
-    fetchFactory<TResponse>(path, { ...config, method: "PATCH", body }),
+  patch: <TBody, TResponse>(
+    path: string,
+    opts: WriteOptions<TBody, TResponse>,
+  ) => fetchFactory<TBody, TResponse>("PATCH", path, opts),
 
-  delete: <TResponse>(path: string, config?: FetchConfig) =>
-    fetchFactory<TResponse>(path, { ...config, method: "DELETE" }),
+  delete: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
+    fetchFactory<undefined, TResponse>("DELETE", path, {
+      ...opts,
+      body: undefined,
+    }),
 
-  options: <TResponse>(path: string, config?: FetchConfig) =>
-    fetchFactory<TResponse>(path, { ...config, method: "OPTIONS" }),
+  options: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
+    fetchFactory<undefined, TResponse>("OPTIONS", path, {
+      ...opts,
+      body: undefined,
+    }),
 
-  query: <TResponse>(path: string, body?: unknown, config?: FetchConfig) =>
-    fetchFactory<TResponse>(path, { ...config, method: "QUERY", body }),
+  query: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
+    fetchFactory<undefined, TResponse>("GET", path, {
+      ...opts,
+      body: undefined,
+    }),
 };
 
 export function createEndpoint(prefix: string) {
@@ -197,30 +231,41 @@ export function createEndpoint(prefix: string) {
     path.startsWith("/") ? `${prefix}${path}` : `${prefix}/${path}`;
 
   return {
-    get: <TResponse>(path: string, config?: FetchConfig) =>
-      http.get<TResponse>(fullPath(path), config),
+    get: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
+      http.get<TResponse>(fullPath(path), opts),
 
-    post: <TResponse>(path: string, body?: unknown, config?: FetchConfig) =>
-      http.post<TResponse>(fullPath(path), body, config),
+    post: <TBody, TResponse>(
+      path: string,
+      opts: WriteOptions<TBody, TResponse>,
+    ) => http.post<TBody, TResponse>(fullPath(path), opts),
 
-    put: <TResponse>(path: string, body: unknown, config?: FetchConfig) =>
-      http.put<TResponse>(fullPath(path), body, config),
+    put: <TBody, TResponse>(
+      path: string,
+      opts: WriteOptions<TBody, TResponse>,
+    ) => http.put<TBody, TResponse>(fullPath(path), opts),
 
-    patch: <TResponse>(path: string, body: unknown, config?: FetchConfig) =>
-      http.patch<TResponse>(fullPath(path), body, config),
+    patch: <TBody, TResponse>(
+      path: string,
+      opts: WriteOptions<TBody, TResponse>,
+    ) => http.patch<TBody, TResponse>(fullPath(path), opts),
 
-    delete: <TResponse>(path: string, config?: FetchConfig) =>
-      http.delete<TResponse>(fullPath(path), config),
+    delete: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
+      http.delete<TResponse>(fullPath(path), opts),
 
-    options: <TResponse>(path: string, config?: FetchConfig) =>
-      http.options<TResponse>(fullPath(path), config),
+    options: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
+      http.options<TResponse>(fullPath(path), opts),
 
-    query: <TResponse>(path: string, body?: unknown, config?: FetchConfig) =>
-      http.query<TResponse>(fullPath(path), body, config),
+    query: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
+      http.query<TResponse>(fullPath(path), opts),
   };
 }
 
 export const cacheStrategies = {
+  /**
+   * Web-only under Expo's fetch polyfill. On native, the cache hint is
+   * ignored and the response is fetched normally. Do not rely on this
+   * for offline support on iOS or Android.
+   */
   static: { cache: "force-cache" as RequestCache },
 
   dynamic: { cache: "no-store" as RequestCache },

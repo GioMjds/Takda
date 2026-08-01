@@ -1,20 +1,18 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "declaration": true,
+    "moduleResolution": "nodenext",
+    "target": "esnext",
+    "declaration": false,
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "esnext",
-    "sourceMap": true,
-    "incremental": true,
-    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
+    "sourceMap": false,
+    "incremental": false,
     "strictNullChecks": true,
     "noImplicitAny": true,
-    "paths": {
-      "@/*": ["./src/*"]
-    },
+    "paths": { "@/*": ["./src/*"] },
     "types": ["jest", "node"]
   },
   "include": ["src/**/*"],
