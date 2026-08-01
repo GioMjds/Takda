@@ -1,16 +1,2 @@
 onlyBuiltDependencies:
   - unrs-resolver
-
-minimumReleaseAge: 0
-
-overrides:
-  "@babel/generator": 7.29.7
-  "@babel/parser": 7.29.7
-  "@babel/plugin-transform-regenerator": 7.25.9
-  "@babel/traverse": 7.29.7
-  "@babel/types": 7.29.7
-  "@hookform/resolvers": 5.5.0
-  baseline-browser-mapping: 2.11.8
-  js-yaml: 4.1.0
-  react-hook-form: 7.54.2
-  react-native-nitro-modules: 0.36.4
