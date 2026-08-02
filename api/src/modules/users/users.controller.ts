@@ -10,71 +10,102 @@ import {
   HttpStatus,
   HttpCode,
   UseGuards,
+  UsePipes,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto } from './dto';
+import {
+  CreateUserDto,
+  CreateUserSchema,
+  UpdateUserDto,
+  UpdateUserSchema,
+  FindUsersQuerySchema,
+} from './dto';
 import { UserNotFoundException } from '@/common/exceptions';
-import { parseBool, parseQueryInt } from '@/common/utils';
 import { JwtAuthGuard, RolesGuard } from '@/common/guards';
-import { Roles } from '@/common/decorators';
+import { CurrentUser, CurrentUserPayload, Roles } from '@/common/decorators';
 import { UserRole } from '@prisma/client';
+import { ZodValidationPipe } from '@/common/pipes';
+import { CustomLoggerService } from '@/common/services';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly logger: CustomLoggerService,
+  ) {}
 
   @Get()
   @Roles(UserRole.BusinessOwner, UserRole.Staff)
   async findAll(
-    @Query('skip') skip?: string,
-    @Query('take') take?: string,
-    @Query('includeDeleted') includeDeleted?: string,
-    @Query('includeArchived') includeArchived?: string,
+    @Query(new ZodValidationPipe(FindUsersQuerySchema))
+    query: {
+      skip?: number;
+      take?: number;
+      includeDeleted?: boolean;
+      includeArchived?: boolean;
+    },
   ) {
-    return this.users.findAll({
-      skip: parseQueryInt(skip),
-      take: parseQueryInt(take),
-      includeDeleted: parseBool(includeDeleted),
-      includeArchived: parseBool(includeArchived),
-    });
+    return this.users.findAll(query);
   }
 
   @Get(':id')
-  async findById(@Param('id') id: string) {
+  async findById(@Param('id', ParseUUIDPipe) id: string) {
     const user = await this.users.findById(id);
-    if (!user) throw new UserNotFoundException(id);
+    if (!user) {
+      this.logger.warn(`User with id ${id} not found`, 'UsersController');
+      throw new UserNotFoundException(id);
+    }
     return user;
   }
 
   @Post()
   @Roles(UserRole.BusinessOwner)
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() dto: CreateUserDto) {
-    return this.users.createUser(dto);
+  @UsePipes(new ZodValidationPipe(CreateUserSchema))
+  async create(
+    @Body() dto: CreateUserDto,
+    @CurrentUser() actor: CurrentUserPayload,
+  ) {
+    return this.users.createUser(dto, actor);
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.users.updateUser(id, dto);
+  @UsePipes(new ZodValidationPipe(UpdateUserSchema))
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() actor: CurrentUserPayload,
+  ) {
+    return this.users.updateUser(id, dto, actor);
   }
 
   @Delete(':id')
   @Roles(UserRole.BusinessOwner)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string) {
-    return this.users.softDeleteUser(id);
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+  ) {
+    return this.users.softDeleteUser(id, actor);
   }
 
   @Patch(':id/archive')
   @Roles(UserRole.BusinessOwner)
-  async archive(@Param('id') id: string) {
-    return this.users.archiveUser(id);
+  async archive(
+    @Param('id') id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+  ) {
+    return this.users.archiveUser(id, actor);
   }
 
   @Patch(':id/restore')
   @Roles(UserRole.BusinessOwner)
-  async restore(@Param('id') id: string) {
-    return this.users.restoreUser(id);
+  async restore(
+    @Param('id') id: string,
+    @CurrentUser() actor: CurrentUserPayload,
+  ) {
+    return this.users.restoreUser(id, actor);
   }
 }

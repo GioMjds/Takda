@@ -21,19 +21,15 @@ export type UsersFindAll = {
   take?: number;
   includeDeleted?: boolean;
   includeArchived?: boolean;
-  onlyDeleted?: boolean;
-  onlyArchived?: boolean;
 };
 
-type CreateUser = {
+export type CreateUserInput = {
   email: string;
   firstName: string;
   lastName: string;
   password: string;
   role?: UserRole;
 };
-
-export type UserInternal = Omit<User, 'password'>;
 
 export function toUserPublic(row: User): UserPublic {
   return {
@@ -68,31 +64,19 @@ export class UsersRepository {
     return this.findOne({ email }, options);
   }
 
-  async findAuthByEmail(email: string): Promise<User | null> {
-    return await this.prisma.user.findFirst({
-      where: {
-        email,
-        deletedAt: null,
-      },
-    });
-  }
-
   async findAll(params?: UsersFindAll): Promise<UserPublic[]> {
-    const where: Prisma.UserWhereInput = buildWhere(params);
-
+    const where = this.buildWhere(params);
     const users = await this.prisma.user.findMany({
       where,
-      skip: params?.skip,
+      skip: params?.skip ?? 0,
       take: params?.take ?? 50,
       orderBy: { createdAt: 'desc' },
     });
     return users.map(toUserPublic);
   }
 
-  async create(data: CreateUser): Promise<UserPublic> {
-    const user = await this.prisma.user.create({
-      data,
-    });
+  async create(data: CreateUserInput): Promise<UserPublic> {
+    const user = await this.prisma.user.create({ data });
     return toUserPublic(user);
   }
 
@@ -133,10 +117,12 @@ export class UsersRepository {
     where: Prisma.UserWhereInput,
     options?: { includeDeleted?: boolean },
   ): Promise<UserPublic | null> {
+    // Build a new where object — do not mutate the caller's argument.
+    const finalWhere: Prisma.UserWhereInput = { ...where };
     if (!options?.includeDeleted) {
-      where.deletedAt = null;
+      finalWhere.deletedAt = null;
     }
-    const user = await this.prisma.user.findFirst({ where });
+    const user = await this.prisma.user.findFirst({ where: finalWhere });
     return user ? toUserPublic(user) : null;
   }
 
@@ -157,16 +143,11 @@ export class UsersRepository {
       throw e;
     }
   }
-}
 
-function buildWhere(params?: UsersFindAll): Prisma.UserWhereInput {
-  const where: Prisma.UserWhereInput = {};
-
-  if (params?.onlyDeleted) where.deletedAt = { not: null };
-  else if (!params?.includeDeleted) where.deletedAt = null;
-
-  if (params?.onlyArchived) where.archivedAt = { not: null };
-  else if (!params?.includeArchived) where.archivedAt = null;
-
-  return where;
+  private buildWhere(params?: UsersFindAll): Prisma.UserWhereInput {
+    const where: Prisma.UserWhereInput = {};
+    if (!params?.includeDeleted) where.deletedAt = null;
+    if (!params?.includeArchived) where.archivedAt = null;
+    return where;
+  }
 }

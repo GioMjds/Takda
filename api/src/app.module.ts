@@ -19,11 +19,21 @@ import {
   NotificationsModule,
 } from '@/modules';
 import { SharedModule } from './shared/shared.module';
+import { JwtModule } from '@nestjs/jwt';
+import { ENV } from './config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: config.get<number>(ENV.JWT_EXPIRES_IN) },
+      }),
     }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRootAsync({
@@ -67,6 +77,5 @@ import { SharedModule } from './shared/shared.module';
     QueuesModule,
     SharedModule,
   ],
-  providers: [],
 })
 export class AppModule {}
