@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CustomLoggerService } from '@/common/services';
+import { ENV } from '@/config';
 
 @Global()
 @Module({
@@ -10,10 +11,10 @@ import { CustomLoggerService } from '@/common/services';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const expiresIn = config.get<string>('JWT_EXPIRES_IN', '15m');
+        const expiresIn = config.get<number>(ENV.JWT_EXPIRES_IN);
         return {
           secret: config.get<string>('JWT_SECRET'),
-          signOptions: { expiresIn: expiresIn as unknown as number },
+          signOptions: { expiresIn: expiresIn },
         };
       },
     }),
