@@ -10,9 +10,7 @@
 ## 1. What is Takda?
 
 Takda is a **queue and appointment booking platform for walk-in
-businesses** targeted at the informal service economy: palengke (public
-market) stalls, barbershops, small dental/optical clinics, LGU (local
-government unit) offices, and the like.
+businesses** targeted at the informal service economy.
 
 **Core flow:**
 

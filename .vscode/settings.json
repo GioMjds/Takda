@@ -37,6 +37,6 @@
   "search.followSymlinks": false,
   "editor.quickSuggestionsDelay": 150,
   "editor.inlineSuggest.enabled": true,
-  "js/ts.experimental.useTsgo": true,
-  "js/ts.suggest.autoImports": true,
+  "js/ts.experimental.useTsgo": false,
+  "js/ts.suggest.autoImports": true
 }

@@ -10,10 +10,11 @@ datasource db {
 /// businesses. Auth is JWT; passwords are bcrypt-hashed here.
 model User {
   email        String         @unique
-  createdAt    DateTime       @default(now())
-  fullName     String
+  firstName    String
+  lastName     String
   isActive     Boolean        @default(true)
   password     String
+  createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   id           String         @id @default(cuid())
   role         UserRole       @default(Staff)
@@ -170,9 +171,9 @@ model QueueEntry {
 }
 
 enum UserRole {
-  Admin
+  Customer
+  BusinessOwner
   Staff
-  Doctor
 }
 
 enum AppointmentSource {
