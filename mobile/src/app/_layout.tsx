@@ -28,12 +28,13 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    "StackSansText-Regular": require("../assets/fonts/StackSansText-Regular.ttf"),
-    "StackSansText-ExtraLight": require("../assets/fonts/StackSansText-ExtraLight.ttf"),
-    "StackSansText-Light": require("../assets/fonts/StackSansText-Light.ttf"),
-    "StackSansText-Medium": require("../assets/fonts/StackSansText-Medium.ttf"),
-    "StackSansText-SemiBold": require("../assets/fonts/StackSansText-SemiBold.ttf"),
-    "StackSansText-Bold": require("../assets/fonts/StackSansText-Bold.ttf"),
+    "Manrope-Bold": require("@/assets/fonts/Manrope-Bold.ttf"),
+    "Manrope-ExtraBold": require("@/assets/fonts/Manrope-ExtraBold.ttf"),
+    "Manrope-ExtraLight": require("@/assets/fonts/Manrope-ExtraLight.ttf"),
+    "Manrope-Light": require("@/assets/fonts/Manrope-Light.ttf"),
+    "Manrope-Medium": require("@/assets/fonts/Manrope-Medium.ttf"),
+    "Manrope-Regular": require("@/assets/fonts/Manrope-Regular.ttf"),
+    "Manrope-SemiBold": require("@/assets/fonts/Manrope-SemiBold.ttf"),
   });
 
   const CustomTheme = {

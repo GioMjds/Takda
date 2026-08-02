@@ -4,4 +4,4 @@ export * from './main';
 export * from './repl';
 export * as common from './common';
 export * as config from './config';
-export * as prisma from './prisma';
+export * as modules from './modules';

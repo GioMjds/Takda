@@ -83,6 +83,38 @@ function isIndexFile(name) {
   return INDEX_FILES.includes(name);
 }
 
+function getExistingIndexFile(dir) {
+  for (const name of INDEX_FILES) {
+    const fullPath = join(dir, name);
+    if (existsSync(fullPath)) return fullPath;
+  }
+  return null;
+}
+
+function hasValidBarrel(dir) {
+  const indexPath = getExistingIndexFile(dir);
+  if (!indexPath) return false;
+  try {
+    const content = readFileSync(indexPath, 'utf8').trim();
+    return content.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function isHandWrittenIndex(dir) {
+  const indexPath = getExistingIndexFile(dir);
+  if (!indexPath) return false;
+  try {
+    const content = readFileSync(indexPath, 'utf8').trim();
+    if (content.length === 0) return false;
+    if (content.startsWith('// Auto-generated')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function shouldSkip(name) {
   return SKIP_NAME_PATTERNS.some((re) => re.test(name));
 }
@@ -133,9 +165,7 @@ function buildBarrel(dir) {
   const dirExports = [];
   for (const d of dirs) {
     const subDir = join(dir, d.name);
-    const hasSubBarrel = ['index.ts', 'index.tsx'].some(
-      (idx) => existsSync(join(subDir, idx)),
-    );
+    const hasSubBarrel = hasValidBarrel(subDir);
     if (hasSubBarrel) {
       // Re-export the sub-barrel through a namespace.
       const spec = toModuleSpecifier(dir, subDir);
@@ -259,32 +289,23 @@ function writeEmptyBarrel(dir) {
 }
 
 function walk(dir) {
-  // If this dir already has an index file (possibly a hand-written one),
-  // still recurse into its subdirs but don't overwrite the index itself —
-  // unless --force is set.
-  const hasExistingIndex = INDEX_FILES.some((n) => existsSync(join(dir, n)));
-  if (!hasExistingIndex) {
+  // Always recurse into subdirectories first so sub-barrels get generated before parent runs.
+  const entries = readDirSafe(dir);
+  for (const e of entries) {
+    if (e.isDirectory()) walk(join(dir, e.name));
+  }
+
+  const handWritten = isHandWrittenIndex(dir);
+  if (!handWritten || force) {
     const content = buildBarrel(dir);
     if (content) {
       writeBarrel(dir, content);
     } else if (writeEmpty) {
       writeEmptyBarrel(dir);
     }
-  } else if (force) {
-    const content = buildBarrel(dir);
-    if (content) writeBarrel(dir, content);
-    else {
-      if (!quiet) console.log(`keep (existing index, --force with no content): ${relative(process.cwd(), dir)}`);
-      summary.kept += 1;
-    }
   } else {
-    if (!quiet) console.log(`keep (existing index): ${relative(process.cwd(), dir)}`);
+    if (!quiet) console.log(`keep (hand-written index): ${relative(process.cwd(), dir)}`);
     summary.kept += 1;
-  }
-  // Always recurse into subdirectories so sub-barrels get generated.
-  const entries = readDirSafe(dir);
-  for (const e of entries) {
-    if (e.isDirectory()) walk(join(dir, e.name));
   }
 }
 

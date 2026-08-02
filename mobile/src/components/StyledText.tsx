@@ -15,7 +15,7 @@ interface StyledTextProps extends RNTextProps {
 
 const FONT_MAP = {
   bold: "Manrope-Bold",
-  extrabold: "Manrope-Bold",
+  extrabold: "Manrope-ExtraBold",
   extralight: "Manrope-ExtraLight",
   light: "Manrope-Light",
   medium: "Manrope-Medium",

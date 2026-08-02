@@ -25,6 +25,7 @@
       "bundler": "metro"
     },
     "plugins": [
+      "expo-router",
       [
         "expo-font",
         {
@@ -39,7 +40,6 @@
           ]
         }
       ],
-      "expo-router",
       [
         "expo-splash-screen",
         {

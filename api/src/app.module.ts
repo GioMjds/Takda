@@ -7,7 +7,17 @@ import {
   NodeIdempotencyModule,
   StorageAdapterEnum,
 } from '@node-idempotency/nestjs';
-import { PrismaModule } from './prisma/prisma.module';
+import {
+  AppointmentsModule,
+  AuthModule,
+  BusinessesModule,
+  HealthModule,
+  PrismaModule,
+  QueuesModule,
+  SubscriptionsModule,
+  UsersModule,
+  NotificationsModule,
+} from '@/modules';
 
 @Module({
   imports: [
@@ -46,6 +56,14 @@ import { PrismaModule } from './prisma/prisma.module';
       }),
     }),
     PrismaModule,
+    HealthModule,
+    NotificationsModule,
+    SubscriptionsModule,
+    AppointmentsModule,
+    AuthModule,
+    UsersModule,
+    BusinessesModule,
+    QueuesModule,
   ],
   providers: [],
 })
