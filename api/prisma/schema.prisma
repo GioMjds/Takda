@@ -14,6 +14,8 @@ model User {
   lastName     String
   isActive     Boolean        @default(true)
   password     String
+  deletedAt    DateTime?
+  archivedAt   DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   id           String         @id @default(cuid())
@@ -23,6 +25,9 @@ model User {
   Doctor       Doctor?
   Notification Notification[]
   QueueEntry   QueueEntry[]
+
+  @@index([deletedAt])
+  @@index([archivedAt])
 }
 
 /// Append-only audit log of meaningful business events ("booking created",
