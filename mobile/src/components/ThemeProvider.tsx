@@ -1,49 +1,31 @@
-import { useColorScheme } from "react-native";
-import { VariableContextProvider } from "nativewind";
+import { useEffect } from "react";
+import { Appearance, useColorScheme } from "react-native";
+import * as NavigationBar from "expo-navigation-bar";
+import { StatusBar } from "expo-status-bar";
+import { normalizeSystem, useThemeStore } from "@/stores/theme";
 
-const themes = {
-  brand: {
-    light: {
-      "--color-foreground": "#000000",
-      "--color-muted-foreground": "#64748b",
-      "--color-primary": "#3b82f6",
-      "--color-secondary": "#8b5cf6",
-    },
-    dark: {
-      "--color-foreground": "#ffffff",
-      "--color-muted-foreground": "#a1a1a1",
-      "--color-primary": "#60a5fa",
-      "--color-secondary": "#a78bfa",
-    },
-  },
-  christmas: {
-    light: {
-      "--color-foreground": "#000000",
-      "--color-muted-foreground": "#64748b",
-      "--color-primary": "#dc2626",
-      "--color-secondary": "#16a34a",
-    },
-    dark: {
-      "--color-foreground": "#ffffff",
-      "--color-muted-foreground": "#a1a1a1",
-      "--color-primary": "#f87171",
-      "--color-secondary": "#4ade80",
-    },
-  },
-};
-
-export function ThemeProvider({
-  name,
-  children,
-}: {
-  name: keyof typeof themes;
+interface ThemeProviderProps {
   children: React.ReactNode;
-}) {
-  const colorScheme = useColorScheme() ?? "light";
+}
+
+export function ThemeProvider({ children }: ThemeProviderProps) {
+  const system = useColorScheme();
+  const resolved = useThemeStore((s) => s.resolved);
+  const setSystem = useThemeStore((s) => s.setSystem);
+
+  useEffect(() => {
+    const next = normalizeSystem(system);
+    setSystem(next ?? normalizeSystem(Appearance.getColorScheme()));
+  }, [system, setSystem]);
+
+  useEffect(() => {
+    NavigationBar.setStyle(resolved === "dark" ? "light" : "dark");
+  }, [resolved]);
 
   return (
-    <VariableContextProvider value={themes[name][colorScheme]}>
+    <>
+      <StatusBar style={resolved === "dark" ? "light" : "dark"} />
       {children}
-    </VariableContextProvider>
+    </>
   );
 }

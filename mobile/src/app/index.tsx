@@ -1,9 +1,10 @@
-import { Text, View } from "react-native";
+import { StyledText } from "@/components";
+import { View } from "react-native";
 
 export default function Index() {
   return (
-    <View>
-      <Text>Edit src/app/index.tsx to edit this screen.</Text>
+    <View className="flex-1 items-center justify-center">
+      <StyledText variant="extrabold" className="text-xl">Edit src/app/index.tsx to edit this screen.</StyledText>
     </View>
   );
 }

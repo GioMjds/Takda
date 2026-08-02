@@ -18,6 +18,7 @@ import {
   UsersModule,
   NotificationsModule,
 } from '@/modules';
+import { SharedModule } from './shared/shared.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import {
     UsersModule,
     BusinessesModule,
     QueuesModule,
+    SharedModule,
   ],
   providers: [],
 })

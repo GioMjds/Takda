@@ -5,11 +5,13 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as NavigationBar from "expo-navigation-bar";
 import { useEffect } from "react";
-import { DefaultTheme, ThemeProvider } from "expo-router/react-navigation";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-reanimated";
 import { useAuthStore } from "@/stores/auth";
+import { useThemeStore } from "@/stores/theme";
+import { ThemeProvider as AppThemeProvider } from "@/components/ThemeProvider";
 
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
@@ -37,13 +39,8 @@ export default function RootLayout() {
     "Manrope-SemiBold": require("@/assets/fonts/Manrope-SemiBold.ttf"),
   });
 
-  const CustomTheme = {
-    ...DefaultTheme,
-    colors: {
-      ...DefaultTheme.colors,
-      background: "#ffffff",
-    },
-  };
+  const resolvedTheme = useThemeStore((s) => s.resolved);
+  const hydrateTheme = useThemeStore((s) => s.hydrate);
 
   useEffect(() => {
     if (!fontsLoaded) return;
@@ -59,22 +56,32 @@ export default function RootLayout() {
 
   useEffect(() => {
     void useAuthStore.getState().hydrate();
-  }, []);
+    hydrateTheme();
+  }, [hydrateTheme]);
+
+  const rootClass = resolvedTheme === "dark" ? "dark bg-surface" : "bg-surface";
 
   return (
-    <ThemeProvider value={CustomTheme}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <QueryClientProvider client={queryClient}>
-          <SafeAreaProvider>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: "transparent" },
-              }}
-            />
-          </SafeAreaProvider>
-        </QueryClientProvider>
-      </GestureHandlerRootView>
-    </ThemeProvider>
+    <AppThemeProvider>
+      <View className={rootClass} style={{ flex: 1 }}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <QueryClientProvider client={queryClient}>
+            <SafeAreaProvider>
+              <SafeAreaView
+                className="flex-1 bg-surface"
+                style={{ flex: 1 }}
+              >
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: "transparent" },
+                  }}
+                />
+              </SafeAreaView>
+            </SafeAreaProvider>
+          </QueryClientProvider>
+        </GestureHandlerRootView>
+      </View>
+    </AppThemeProvider>
   );
 }
