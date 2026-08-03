@@ -130,7 +130,7 @@ export class AuthService {
     return user;
   }
 
-  private async issueTokensFor(
+  async issueTokensFor(
     user: UserPublic,
     userAgent?: string,
     ip?: string,

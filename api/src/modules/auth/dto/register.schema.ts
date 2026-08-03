@@ -1,11 +1,13 @@
 import { z } from 'zod';
 
-export const RegisterSchema = z.object({
-  email: z.email().max(254),
+export const RegisterBusinessOwnerSchema = z.object({
+  email: z.string().email().max(254),
   password: z.string().min(8).max(128),
   firstName: z.string().min(1).max(200),
   lastName: z.string().min(1).max(200),
-  role: z.enum(['Staff', 'Customer']).default('Customer'),
+  tenantName: z.string().min(1).max(200),
 });
 
-export type RegisterDto = z.infer<typeof RegisterSchema>;
+export type RegisterBusinessOwnerDto = z.infer<
+  typeof RegisterBusinessOwnerSchema
+>;
