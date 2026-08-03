@@ -12,6 +12,7 @@ import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { PasswordResetService } from './password-reset.service';
 import { RegistrationService } from './registration.service';
+import { OtpService } from './otp.service';
 import { CurrentUser, Public } from '@/common/decorators';
 import {
   ForgotPasswordDto,
@@ -19,6 +20,8 @@ import {
   RefreshTokenDto,
   RegisterBusinessOwnerDto,
   ResetPasswordDto,
+  VerifyOtpDto,
+  ResendOtpDto,
 } from './dto';
 import { JwtAuthGuard, RolesGuard } from '@/common/guards';
 import { RateLimitGuard, RateLimit } from './rate-limit';
@@ -31,6 +34,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly registration: RegistrationService,
     private readonly passwordReset: PasswordResetService,
+    private readonly otp: OtpService,
   ) {}
 
   @Public()
@@ -78,6 +82,22 @@ export class AuthController {
       req.headers?.['user-agent'],
       req.ip,
     );
+  }
+
+  @Public()
+  @Post('otp/request')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @RateLimit({ windowMs: 600000, max: 3 })
+  async requestOtp(@Body() dto: ResendOtpDto) {
+    await this.otp.requestOtp(dto.email);
+  }
+
+  @Public()
+  @Post('otp/verify')
+  @HttpCode(HttpStatus.OK)
+  @RateLimit({ windowMs: 600000, max: 5 })
+  async verifyOtp(@Body() dto: VerifyOtpDto, @Req() req: Request) {
+    return this.otp.verifyOtp(dto, req.headers['user-agent'], req.ip);
   }
 
   @Post('logout')

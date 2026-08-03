@@ -1,6 +1,16 @@
 import type { ZodType } from "zod";
-import { useAuthStore } from "@/stores";
-import { refreshAccessToken } from "@/services";
+
+export interface FetchAuthCallbacks {
+  getAccessToken: () => string | null;
+  refreshAccessToken: () => Promise<string>;
+  onAuthFailure: () => void;
+}
+
+let authCallbacks: FetchAuthCallbacks | null = null;
+
+export function configureFetchAuth(callbacks: FetchAuthCallbacks) {
+  authCallbacks = callbacks;
+}
 
 let refreshPromise: Promise<string> | null = null;
 
@@ -115,16 +125,13 @@ async function fetchFactory<TBody, TResponse>(
         ...opts,
         config: { ...opts.config, headers: newHeaders },
       };
-      const token = useAuthStore.getState().accessToken ?? newToken;
+      const token = authCallbacks?.getAccessToken() ?? newToken;
       attachAuthHeader(newHeaders, token);
       return executeRequest<TBody, TResponse>(method, path, retried);
     }
     if (err instanceof ApiError && err.status === 401) {
       // Refresh itself failed, or second 401: sign the user out.
-      await useAuthStore
-        .getState()
-        .signOut()
-        .catch(() => undefined);
+      authCallbacks?.onAuthFailure();
     }
     throw err;
   }
@@ -134,8 +141,10 @@ async function getOrStartRefresh(): Promise<string> {
   if (!refreshPromise) {
     refreshPromise = (async () => {
       try {
-        const next = await refreshAccessToken();
-        return next.accessToken;
+        if (!authCallbacks?.refreshAccessToken) {
+          throw new Error("No refresh token handler configured");
+        }
+        return await authCallbacks.refreshAccessToken();
       } finally {
         refreshPromise = null;
       }
@@ -165,7 +174,7 @@ async function executeRequest<TBody, TResponse>(
     headers["Content-Type"] = "application/json";
   }
   if (opts.config?.auth) {
-    const token = useAuthStore.getState().accessToken;
+    const token = authCallbacks?.getAccessToken() ?? null;
     if (token) attachAuthHeader(headers, token);
   }
 

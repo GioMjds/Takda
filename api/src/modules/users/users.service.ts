@@ -201,6 +201,19 @@ export class UsersService {
     return this.updateUser(actor.userId, dto, actor);
   }
 
+  async updateAvatarUrl(userId: string, avatarUrl: string): Promise<UserPublic> {
+    const user = await this.repo.findById(userId);
+    if (!user) throw new UserNotFoundException(userId);
+    const updated = await this.repo.update(userId, { avatarUrl });
+    await this.audit.logAction({
+      action: 'USER_AVATAR_UPDATED',
+      entity: ENTITY,
+      entityId: userId,
+      actorUserId: userId,
+    });
+    return updated;
+  }
+
   async createBusinessOwner(
     data: CreateBusinessOwnerInput,
   ): Promise<UserPublic> {

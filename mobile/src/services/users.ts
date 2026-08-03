@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { createEndpoint } from "@/configs";
+import { createEndpoint, ApiError } from "@/configs/fetch";
 import { UserPublicSchema, type UserPublic } from "./auth";
+import { useAuthStore } from "@/stores/auth";
 
 // --- Users Schemas ---
 
@@ -53,6 +54,38 @@ export const usersService = {
       response: UserPublicSchema,
       config: { auth: true },
     }),
+
+  uploadAvatar: async (uri: string): Promise<UserPublic> => {
+    const { accessToken } = useAuthStore.getState();
+    const formData = new FormData();
+    // React Native's FormData accepts { uri, name, type }
+    formData.append('avatar', {
+      uri,
+      name: 'avatar.jpg',
+      type: 'image/jpeg',
+    } as unknown as Blob);
+
+    const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/me/avatar`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new ApiError(
+        (payload as { message?: string }).message ?? 'Avatar upload failed',
+        response.status,
+      );
+    }
+
+    const data = await response.json();
+    const parsed = UserPublicSchema.safeParse(data);
+    if (!parsed.success) throw new ApiError('Invalid server response', 500);
+    return parsed.data;
+  },
 
   findAll: (query?: FindUsersQuery) =>
     usersEndpoint.get<UserPublic[]>("/", {

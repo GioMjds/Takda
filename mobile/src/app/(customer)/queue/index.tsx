@@ -1,3 +1,9 @@
-// Auto-generated barrel. Do not edit by hand.
-export * from './history';
-export * as live from './live';
+import { View, Text } from "react-native";
+
+export default function CustomerQueueIndexScreen() {
+  return (
+    <View className="flex-1 items-center justify-center bg-surface p-4">
+      <Text className="text-base font-semibold text-on-surface">(customer)/queue/index</Text>
+    </View>
+  );
+}

@@ -49,7 +49,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   endpoint = "/notifications/sse",
   enableLocalPush = true,
 }) => {
-  const token = useAuthStore((state) => state.token);
+  const token = useAuthStore((state) => state.accessToken);
   const authStatus = useAuthStore((state) => state.status);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);

@@ -5,6 +5,7 @@ import {
   EVENTS,
   InviteCreatedEvent,
   PasswordResetRequestedEvent,
+  OtpRequestedEvent,
 } from './events';
 import { ConfigService } from '@nestjs/config';
 
@@ -27,5 +28,10 @@ export class MailListener {
     const scheme = this.config.get<string>('MOBILE_APP_SCHEME');
     const link = `${scheme}auth/reset-password?token=${payload.rawToken}`;
     await this.mail.sendPasswordResetEmail(payload.email, link);
+  }
+
+  @OnEvent(EVENTS.OTP_REQUESTED, { async: true })
+  async handleOtpRequested(payload: OtpRequestedEvent) {
+    await this.mail.sendOtpEmail(payload.email, payload.code);
   }
 }

@@ -8,16 +8,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 All commands run from `mobile/`.
 
-| Task                         | Command              |
-| ---------------------------- | -------------------- |
-| Install deps                 | `pnpm install`       |
-| Dev server (Expo)            | `pnpm start`         |
-| Open Android                 | `pnpm android`       |
-| Open iOS                     | `pnpm ios`           |
-| Open web                     | `pnpm web`           |
-| Lint                         | `pnpm lint`          |
-| Regenerate barrels           | `pnpm barrels`       |
-| Reset scaffold (destructive) | `pnpm reset-project` |
+| Task                         | Command             |
+| ---------------------------- | ------------------- |
+| Install deps                 | `npm install`       |
+| Dev server (Expo)            | `npm start`         |
+| Open Android                 | `npm android`       |
+| Open iOS                     | `npm ios`           |
+| Open web                     | `npm web`           |
+| Lint                         | `npm lint`          |
+| Regenerate barrels           | `npm barrels`       |
+| Reset scaffold (destructive) | `npm reset-project` |
 
 The `mobile/README.md` still uses `npm install` / `npm run` snippets; the project itself uses `pnpm`.
 

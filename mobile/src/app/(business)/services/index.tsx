@@ -1,3 +1,9 @@
-// Auto-generated barrel. Do not edit by hand.
-export * from './[serviceId]';
-export * from './create';
+import { View, Text } from "react-native";
+
+export default function BusinessServicesIndexScreen() {
+  return (
+    <View className="flex-1 items-center justify-center bg-surface p-4">
+      <Text className="text-base font-semibold text-on-surface">(business)/services/index</Text>
+    </View>
+  );
+}

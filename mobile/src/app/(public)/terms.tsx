@@ -1,6 +1,6 @@
 import { ScrollView, Text, View } from "react-native";
 import { StyledText } from "@/components";
-import { Section } from "./types";
+import { Section } from "./_types";
 
 const LAST_UPDATED = "2026-08-03";
 
@@ -29,7 +29,7 @@ const SECTIONS = [
     title: "6. Changes",
     body: "We may update these terms from time to time. We will post the revised version here and update the date below. Continued use of Takda after a change means you accept the revised terms.",
   },
-] satisfies Section[];
+] satisfies Omit<Section, "kind">[];
 
 export default function Terms() {
   return (

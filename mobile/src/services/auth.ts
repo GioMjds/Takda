@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { createEndpoint } from "@/configs";
-import { useAuthStore } from "@/stores";
+import { createEndpoint } from "@/configs/fetch";
 
 export const UserRoleSchema = z.enum([
   "BusinessOwner",
@@ -22,6 +21,7 @@ export const UserPublicSchema = z.object({
   archivedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  avatarUrl: z.string().nullable().optional(),
 });
 export type UserPublic = z.infer<typeof UserPublicSchema>;
 
@@ -67,6 +67,18 @@ export const ResetPasswordSchema = z.object({
 });
 export type ResetPasswordDto = z.infer<typeof ResetPasswordSchema>;
 
+export const VerifyOtpSchema = z.object({
+  email: z.email().max(255),
+  code: z.string().length(6),
+});
+export type VerifyOtpDto = z.infer<typeof VerifyOtpSchema>;
+
+export const ResendOtpSchema = z.object({
+  email: z.email().max(255),
+});
+export type ResendOtpDto = z.infer<typeof ResendOtpSchema>;
+
+
 // --- Auth Endpoint Service ---
 
 const authEndpoint = createEndpoint("/auth");
@@ -102,6 +114,19 @@ export const authService = {
       response: AuthTokensSchema,
     }),
 
+  verifyOtp: (dto: VerifyOtpDto) =>
+    authEndpoint.post<VerifyOtpDto, AuthTokens>('/otp/verify', {
+      body: dto,
+      response: AuthTokensSchema,
+    }),
+
+  requestOtp: (dto: ResendOtpDto) =>
+    authEndpoint.post<ResendOtpDto, void>('/otp/request', {
+      body: dto,
+      response: z.undefined(),
+    }),
+
+
   logout: (dto: RefreshTokenDto) =>
     authEndpoint.post<RefreshTokenDto, void>("/logout", {
       body: dto,
@@ -123,14 +148,6 @@ export const authService = {
     }),
 };
 
-export async function refreshAccessToken(): Promise<AuthTokens> {
-  const refreshToken = useAuthStore.getState().refreshToken;
-  if (!refreshToken) {
-    throw new Error("No refresh token available");
-  }
-  const next = await authService.refresh({ refreshToken });
-  await useAuthStore
-    .getState()
-    .signIn(next.accessToken, next.refreshToken, next.user);
-  return next;
+export async function refreshAccessToken(refreshToken: string): Promise<AuthTokens> {
+  return authService.refresh({ refreshToken });
 }

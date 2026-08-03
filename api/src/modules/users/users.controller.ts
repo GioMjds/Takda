@@ -12,7 +12,14 @@ import {
   UseGuards,
   UsePipes,
   ParseUUIDPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { UsersService } from './users.service';
 import {
   CreateUserDto,
@@ -48,6 +55,30 @@ export class UsersController {
     @Body() dto: UpdateUserDto
   ) {
     return this.users.updateMe(actor, dto);
+  }
+
+  @Patch('me/avatar')
+  @UseInterceptors(FileInterceptor('avatar', {
+    storage: diskStorage({
+      destination: './uploads/avatars',
+      filename: (_req, file, cb) => {
+        const ext = extname(file.originalname);
+        cb(null, `${uuidv4()}${ext}`);
+      },
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+    fileFilter: (_req, file, cb) => {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+      cb(null, allowed.includes(file.mimetype));
+    },
+  }))
+  async uploadAvatar(
+    @CurrentUser() actor: CurrentUserPayload,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('No valid image file provided');
+    const url = `/uploads/avatars/${file.filename}`;
+    return this.users.updateAvatarUrl(actor.userId, url);
   }
 
   @Get()

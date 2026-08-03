@@ -15,7 +15,7 @@ export function RootLinking() {
         if (path !== RESET_PATH) return;
         const token = parsed.searchParams.get("token") ?? "";
         router.replace({
-          pathname: RESET_TARGET,
+          pathname: RESET_TARGET as any,
           params: token ? { token } : {},
         });
       } catch {

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { tokenStorage, refreshTokenStorage, clearAuth } from "@/storage/secure";
 import { userCacheStorage } from "@/storage/mmkv";
 import { authService, type UserPublic, type UserRole } from "@/services/auth";
+import { configureFetchAuth } from "@/configs/fetch";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
 
@@ -102,8 +103,27 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 }));
 
+configureFetchAuth({
+  getAccessToken: () => useAuthStore.getState().accessToken,
+  refreshAccessToken: async () => {
+    const refreshToken = useAuthStore.getState().refreshToken;
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
+    }
+    const next = await authService.refresh({ refreshToken });
+    await useAuthStore
+      .getState()
+      .signIn(next.accessToken, next.refreshToken, next.user);
+    return next.accessToken;
+  },
+  onAuthFailure: () => {
+    void useAuthStore.getState().signOut().catch(() => undefined);
+  },
+});
+
 export const useAuthRole = (): UserRole | undefined =>
   useAuthStore((s) => s.user?.role);
 
 export const getAuthToken = (): string | null =>
   useAuthStore.getState().accessToken;
+

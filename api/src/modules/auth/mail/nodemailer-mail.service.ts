@@ -58,4 +58,22 @@ export class NodemailerMailService implements MailService {
       );
     }
   }
+
+  async sendOtpEmail(to: string, code: string): Promise<void> {
+    const from = this.config.get<string>('SMTP_FROM');
+    try {
+      await this.transporter.sendMail({
+        from,
+        to,
+        subject: 'Your Takda verification code',
+        html: `<p>Your verification code is: <strong>${code}</strong>. It expires in 10 minutes.</p>`,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Failed to send OTP email to ${to}`,
+        error instanceof Error ? error.stack : String(error),
+        'NodemailerMailService',
+      );
+    }
+  }
 }

@@ -15,6 +15,7 @@ export interface UserPublic {
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  avatarUrl: string | null;
 }
 
 export interface UserWithPassword extends UserPublic {
@@ -65,6 +66,7 @@ export function toUserPublic(row: User): UserPublic {
     archivedAt: row.archivedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    avatarUrl: row.avatarUrl,
   };
 }
 
@@ -113,6 +115,7 @@ export class UsersRepository {
           archivedAt: row.archivedAt,
           createdAt: row.createdAt,
           updatedAt: row.updatedAt,
+          avatarUrl: row.avatarUrl,
         }
       : null;
   }

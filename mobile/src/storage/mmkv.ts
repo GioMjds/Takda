@@ -1,5 +1,5 @@
 import { createMMKV } from "react-native-mmkv";
-import { UserPublicSchema, type UserPublic } from "@/services";
+import { UserPublicSchema, type UserPublic } from "@/services/auth";
 
 const storage = createMMKV({ id: "takda.preferences" });
 const USER_KEY = "auth.user" as const;

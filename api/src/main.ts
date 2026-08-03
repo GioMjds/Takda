@@ -1,10 +1,12 @@
 import 'reflect-metadata';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ENV } from './config/env';
 import { networkInterfaces } from 'os';
 import cookieParser from 'cookie-parser';
+import { join } from 'path';
 
 const nets = networkInterfaces();
 
@@ -21,7 +23,7 @@ for (const name of Object.keys(nets)) {
 }
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger:
       ENV.NODE_ENV === 'production'
         ? ['error', 'warn', 'log']
@@ -29,6 +31,8 @@ async function bootstrap(): Promise<void> {
   });
 
   const port = ENV.PORT;
+
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
 
   app.use(cookieParser());
 
