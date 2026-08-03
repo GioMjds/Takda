@@ -10,8 +10,13 @@ import { EVENTS } from './mail';
 import { ResetPasswordDto } from './dto';
 import { ResetTokenInvalidException } from '@/common/exceptions';
 
+const DEFAULT_PASSWORD_RESET_TTL_SECONDS = 86400;
+const DEFAULT_BCRYPT_ROUNDS = 10;
+
 @Injectable()
 export class PasswordResetService {
+  private readonly bcryptRounds: number;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
@@ -19,17 +24,24 @@ export class PasswordResetService {
     private readonly auth: AuthService,
     private readonly audit: AuditService,
     private readonly config: ConfigService,
-  ) {}
+  ) {
+    this.bcryptRounds =
+      config.get<number>('BCRYPT_ROUNDS') ?? DEFAULT_BCRYPT_ROUNDS;
+  }
 
-  async requestReset(email: string): Promise<void> {
+  async requestReset(
+    email: string,
+    userAgent?: string,
+    ip?: string,
+  ): Promise<void> {
     const user = await this.users.findByEmail(email);
     if (!user || !user.isActive) return;
 
     const rawToken = randomBytes(32).toString('hex');
-    const tokenHash = await bcrypt.hash(rawToken, 10);
-    const ttlSeconds = this.config.get<number>(
-      'PASSWORD_RESET_TTL_SECONDS',
-    ) as number;
+    const tokenHash = await bcrypt.hash(rawToken, this.bcryptRounds);
+    const ttlSeconds =
+      this.config.get<number>('PASSWORD_RESET_TTL_SECONDS') ??
+      DEFAULT_PASSWORD_RESET_TTL_SECONDS;
 
     await this.prisma.passwordResetToken.create({
       data: {
@@ -44,7 +56,7 @@ export class PasswordResetService {
       entity: 'User',
       entityId: user.id,
       action: 'PASSWORD_RESET_REQUESTED',
-      payload: { email },
+      payload: { email, userAgent, ip },
     });
 
     this.event.emit(EVENTS.PASSWORD_RESET_REQUESTED, {
@@ -60,11 +72,14 @@ export class PasswordResetService {
     ip?: string,
   ): Promise<AuthTokens> {
     const now = new Date();
+
     const activeTokens = await this.prisma.passwordResetToken.findMany({
       where: {
         usedAt: null,
         expiresAt: { gt: now },
       },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     });
 
     let matchedToken: (typeof activeTokens)[0] | null = null;
@@ -74,40 +89,45 @@ export class PasswordResetService {
         matchedToken = t;
         break;
       }
+    }
 
-      if (!matchedToken) throw new ResetTokenInvalidException();
+    if (!matchedToken) {
+      throw new ResetTokenInvalidException();
+    }
 
-      const newPasswordHash = await bcrypt.hash(dto.newPassword, 10);
+    const user = await this.users.findById(matchedToken.userId);
+    if (!user || !user.isActive || !user.tenantId) {
+      throw new ResetTokenInvalidException();
+    }
 
-      await this.prisma.user.update({
+    const newPasswordHash = await bcrypt.hash(
+      dto.newPassword,
+      this.bcryptRounds,
+    );
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
         where: { id: matchedToken.userId },
         data: { password: newPasswordHash },
-      });
-
-      await this.prisma.passwordResetToken.update({
+      }),
+      this.prisma.passwordResetToken.update({
         where: { id: matchedToken.id },
-        data: { usedAt: new Date() },
-      });
-
-      await this.prisma.refreshToken.updateMany({
+        data: { usedAt: now },
+      }),
+      this.prisma.refreshToken.updateMany({
         where: { userId: matchedToken.userId, revokedAt: null },
         data: { revokedAt: now },
-      });
+      }),
+    ]);
 
-      await this.audit.logAction({
-        actorUserId: matchedToken.userId,
-        entity: 'User',
-        entityId: matchedToken.userId,
-        action: 'PASSWORD_RESET_COMPLETED',
-        payload: { userId: matchedToken.userId },
-      });
+    await this.audit.logAction({
+      actorUserId: matchedToken.userId,
+      entity: 'User',
+      entityId: matchedToken.userId,
+      action: 'PASSWORD_RESET_COMPLETED',
+      payload: { userId: matchedToken.userId, userAgent, ip },
+    });
 
-      const user = await this.users.findById(matchedToken.userId);
-      if (!user || !user.isActive || !user.tenantId) {
-        throw new ResetTokenInvalidException();
-      }
-
-      return this.auth.issueTokensFor(user, userAgent, ip);
-    }
+    return this.auth.issueTokensFor(user, userAgent, ip);
   }
 }
