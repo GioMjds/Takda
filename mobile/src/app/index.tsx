@@ -1,12 +1,12 @@
-import { StyledText } from "@/components";
-import { View } from "react-native";
+import { Redirect } from "expo-router";
+import { useAuthStore } from "@/stores/auth";
 
 export default function Index() {
-  return (
-    <View className="flex-1 items-center justify-center">
-      <StyledText variant="extrabold" className="text-xl text-white">
-        Edit src/app/index.tsx to edit this screen.
-      </StyledText>
-    </View>
-  );
+  const status = useAuthStore((s) => s.status);
+
+  if (status === "loading") return null;
+  if (status === "authenticated") {
+    return <Redirect href={null as never} />;
+  }
+  return <Redirect href="/(public)/welcome" />;
 }

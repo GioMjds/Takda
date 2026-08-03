@@ -1,12 +1,12 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "../../global.css";
+import { useEffect } from "react";
+import { View } from "react-native";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as NavigationBar from "expo-navigation-bar";
 import * as Notifications from "expo-notifications";
-import { useEffect } from "react";
-import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -15,7 +15,7 @@ import {
 } from "react-native-reanimated";
 import { useAuthStore } from "@/stores/auth";
 import { useThemeStore } from "@/stores/theme";
-import { ThemeProvider as AppThemeProvider } from "@/components/ThemeProvider";
+import { ThemeProvider as AppThemeProvider, AuthGate, RootLinking } from "@/components";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -25,7 +25,7 @@ Notifications.setNotificationHandler({
     shouldShowBanner: true,
     shouldShowList: true,
   }),
-})
+});
 
 configureReanimatedLogger({
   level: ReanimatedLogLevel.warn,
@@ -82,6 +82,8 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <SafeAreaProvider>
               <SafeAreaView className="flex-1 bg-surface" style={{ flex: 1 }}>
+                <RootLinking />
+                <AuthGate />
                 <Stack
                   screenOptions={{
                     headerShown: false,
