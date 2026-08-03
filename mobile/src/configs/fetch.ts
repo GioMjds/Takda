@@ -14,6 +14,7 @@ export interface FetchConfig {
   headers?: HeadersInit;
   params?: Record<string, string | number | boolean>;
   auth?: boolean;
+  version?: string;
   cache?: RequestCache;
   next?: {
     revalidate?: number | false;
@@ -71,12 +72,23 @@ type WriteOptions<TBody, TResponse> = {
   config?: FetchConfig;
 };
 
-function getBaseUrl(): string {
+export const DEFAULT_API_VERSION = process.env.API_VERSION || "v1";
+
+function getBaseUrl(version: string = DEFAULT_API_VERSION): string {
   const base = process.env.API_URL;
   if (!base) {
     throw new ApiError("API_URL is not set", 0, null);
   }
-  return base;
+  const trimmedBase = base.replace(/\/+$/u, "");
+
+  if (/\/v\d+$/i.test(trimmedBase)) {
+    return trimmedBase;
+  }
+
+  const formattedVersion = version
+    ? version.replace(/^\/+/u, "").replace(/\/+$/u, "")
+    : "";
+  return formattedVersion ? `${trimmedBase}/${formattedVersion}` : trimmedBase;
 }
 
 async function fetchFactory<TBody, TResponse>(
@@ -86,11 +98,14 @@ async function fetchFactory<TBody, TResponse>(
     | WriteOptions<TBody, TResponse>
     | (RequestOptions<TBody, TResponse> & { body?: undefined }),
 ): Promise<TResponse> {
-  const base = getBaseUrl().replace(/\/+$/u, "");
+  const version = opts.config?.version ?? DEFAULT_API_VERSION;
+  const base = getBaseUrl(version);
 
-  const requestPath = path.startsWith("/")
-    ? `${base}${path}`
-    : `${base}/${path}`;
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const requestPath =
+    path.startsWith("http://") || path.startsWith("https://")
+      ? path
+      : `${base}${cleanPath}`;
   const url = new URL(requestPath);
 
   if (opts.config?.params) {
@@ -226,58 +241,87 @@ export const http = {
     }),
 };
 
-export function createEndpoint(prefix: string) {
-  const fullPath = (path: string) =>
-    path.startsWith("/") ? `${prefix}${path}` : `${prefix}/${path}`;
+export function createEndpoint(
+  prefix: string,
+  defaultOptions?: { version?: string },
+) {
+  const fullPath = (path: string) => {
+    const cleanPrefix = prefix.startsWith("/") ? prefix : `/${prefix}`;
+    return path.startsWith("/")
+      ? `${cleanPrefix}${path}`
+      : `${cleanPrefix}/${path}`;
+  };
+
+  const mergeConfig = (config?: FetchConfig): FetchConfig => ({
+    ...(defaultOptions?.version !== undefined
+      ? { version: defaultOptions.version }
+      : {}),
+    ...config,
+  });
 
   return {
     get: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
-      http.get<TResponse>(fullPath(path), opts),
+      http.get<TResponse>(fullPath(path), {
+        ...opts,
+        config: mergeConfig(opts.config),
+      }),
 
     post: <TBody, TResponse>(
       path: string,
       opts: WriteOptions<TBody, TResponse>,
-    ) => http.post<TBody, TResponse>(fullPath(path), opts),
+    ) =>
+      http.post<TBody, TResponse>(fullPath(path), {
+        ...opts,
+        config: mergeConfig(opts.config),
+      }),
 
     put: <TBody, TResponse>(
       path: string,
       opts: WriteOptions<TBody, TResponse>,
-    ) => http.put<TBody, TResponse>(fullPath(path), opts),
+    ) =>
+      http.put<TBody, TResponse>(fullPath(path), {
+        ...opts,
+        config: mergeConfig(opts.config),
+      }),
 
     patch: <TBody, TResponse>(
       path: string,
       opts: WriteOptions<TBody, TResponse>,
-    ) => http.patch<TBody, TResponse>(fullPath(path), opts),
+    ) =>
+      http.patch<TBody, TResponse>(fullPath(path), {
+        ...opts,
+        config: mergeConfig(opts.config),
+      }),
 
     delete: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
-      http.delete<TResponse>(fullPath(path), opts),
+      http.delete<TResponse>(fullPath(path), {
+        ...opts,
+        config: mergeConfig(opts.config),
+      }),
 
     options: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
-      http.options<TResponse>(fullPath(path), opts),
+      http.options<TResponse>(fullPath(path), {
+        ...opts,
+        config: mergeConfig(opts.config),
+      }),
 
     query: <TResponse>(path: string, opts: ReadOnlyOptions<TResponse>) =>
-      http.query<TResponse>(fullPath(path), opts),
+      http.query<TResponse>(fullPath(path), {
+        ...opts,
+        config: mergeConfig(opts.config),
+      }),
   };
 }
 
 export const cacheStrategies = {
-  /**
-   * Web-only under Expo's fetch polyfill. On native, the cache hint is
-   * ignored and the response is fetched normally. Do not rely on this
-   * for offline support on iOS or Android.
-   */
   static: { cache: "force-cache" as RequestCache },
-
   dynamic: { cache: "no-store" as RequestCache },
-
   revalidate: (seconds: number) => ({
     next: { revalidate: seconds },
   }),
-
   tagged: (tags: string[]) => ({
     next: { tags },
   }),
-
   revalidateTagged: (seconds: number, tags: string[]) => ({
     next: { revalidate: seconds, tags },
   }),

@@ -2,3 +2,4 @@
 export * from './domain.exception';
 export * from './invite.exception';
 export * from './reset-token-invalid.exception';
+export * from './tenant-required.exception';
