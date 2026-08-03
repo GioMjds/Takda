@@ -9,25 +9,78 @@ datasource db {
 /// An owner / staff user. Belongs to one tenant, can own/operate many
 /// businesses. Auth is JWT; passwords are bcrypt-hashed here.
 model User {
-  email        String         @unique
-  firstName    String
-  lastName     String
-  isActive     Boolean        @default(true)
-  password     String
-  deletedAt    DateTime?
-  archivedAt   DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  id           String         @id @default(cuid())
-  role         UserRole       @default(Staff)
-  Appointment  Appointment[]
-  AuditLog     AuditLog[]
-  Doctor       Doctor?
-  Notification Notification[]
-  QueueEntry   QueueEntry[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  firstName           String
+  lastName            String
+  isActive            Boolean              @default(true)
+  password            String
+  tenantId            String?
+  role                UserRole             @default(Staff)
+  deletedAt           DateTime?
+  archivedAt          DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  tenant              Tenant?              @relation(fields: [tenantId], references: [id])
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  invitesSent         Invite[]             @relation("InviteCreator")
+  inviteAccepted      Invite?              @relation("InviteAcceptor")
+  Appointment         Appointment[]
+  AuditLog            AuditLog[]
+  Notification        Notification[]
+  QueueEntry          QueueEntry[]
 
+  @@index([tenantId])
   @@index([deletedAt])
   @@index([archivedAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  ip        String?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Invite {
+  id           String    @id @default(cuid())
+  tenantId     String
+  email        String
+  role         UserRole  @default(Staff)
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdById  String
+  acceptedById String?   @unique
+  createdAt    DateTime  @default(now())
+
+  createdBy  User   @relation("InviteCreator", fields: [createdById], references: [id])
+  acceptedBy User?  @relation("InviteAcceptor", fields: [acceptedById], references: [id])
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([email])
 }
 
 /// Append-only audit log of meaningful business events ("booking created",
@@ -59,51 +112,9 @@ model Appointment {
   reminderSent     Boolean           @default(false)
   createdAt        DateTime          @default(now())
   User             User              @relation(fields: [createdByUserId], references: [id])
-  Doctor           Doctor            @relation(fields: [doctorId], references: [id])
-  Patient          Patient           @relation(fields: [patientId], references: [id])
   Feedback         Feedback?
   Notification     Notification[]
   QueueEntry       QueueEntry?
-}
-
-model ClinicSetting {
-  id                            Int      @id @default(1)
-  clinicName                    String   @default("My Clinic")
-  address                       String?
-  contactPhone                  String?
-  contactEmail                  String?
-  timezone                      String   @default("UTC")
-  defaultConsultDurationMinutes Int      @default(15)
-  createdAt                     DateTime @default(now())
-  updatedAt                     DateTime
-}
-
-model Doctor {
-  id                     BigInt        @id @default(autoincrement())
-  userId                 String        @unique
-  displayName            String
-  specialization         String?
-  consultDurationMinutes Int           @default(15)
-  notes                  String?
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime
-  Appointment            Appointment[]
-  User                   User          @relation(fields: [userId], references: [id])
-  DoctorShift            DoctorShift[]
-  Feedback               Feedback[]
-  QueueEntry             QueueEntry[]
-}
-
-model DoctorShift {
-  id        BigInt   @id @default(autoincrement())
-  doctorId  BigInt
-  weekday   Int
-  startTime DateTime
-  endTime   DateTime
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime
-  Doctor    Doctor   @relation(fields: [doctorId], references: [id])
 }
 
 model Feedback {
@@ -115,8 +126,6 @@ model Feedback {
   comment       String?
   createdAt     DateTime     @default(now())
   Appointment   Appointment? @relation(fields: [appointmentId], references: [id])
-  Doctor        Doctor?      @relation(fields: [doctorId], references: [id])
-  Patient       Patient?     @relation(fields: [patientId], references: [id])
 }
 
 model Notification {
@@ -131,27 +140,7 @@ model Notification {
   sentAt        DateTime?
   createdAt     DateTime            @default(now())
   Appointment   Appointment?        @relation(fields: [appointmentId], references: [id])
-  Patient       Patient?            @relation(fields: [patientId], references: [id])
   User          User                @relation(fields: [userId], references: [id])
-}
-
-model Patient {
-  id           BigInt         @id @default(autoincrement())
-  firstName    String
-  lastName     String
-  middleName   String?
-  phone        String?
-  email        String?
-  gender       Gender?
-  dateOfBirth  DateTime?
-  address      String?
-  externalId   String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime
-  Appointment  Appointment[]
-  Feedback     Feedback[]
-  Notification Notification[]
-  QueueEntry   QueueEntry[]
 }
 
 model QueueEntry {
@@ -171,8 +160,15 @@ model QueueEntry {
   createdAt            DateTime     @default(now())
   User                 User         @relation(fields: [addedByUserId], references: [id])
   Appointment          Appointment? @relation(fields: [appointmentId], references: [id])
-  Doctor               Doctor?      @relation(fields: [doctorId], references: [id])
-  Patient              Patient?     @relation(fields: [patientId], references: [id])
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  invites   Invite[]
 }
 
 enum UserRole {

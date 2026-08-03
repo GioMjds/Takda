@@ -9,12 +9,33 @@ export interface UserPublic {
   firstName: string;
   lastName: string;
   role: UserRole;
+  tenantId: string | null;
   isActive: boolean;
   deletedAt: Date | null;
   archivedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface UserWithPassword extends UserPublic {
+  password: string;
+}
+
+export type CreateBusinessOwnerInput = Pick<
+  UserPublic,
+  'email' | 'firstName' | 'lastName'
+> & {
+  password: string;
+  tenantName: string;
+};
+
+export type CreateStaffFromInviteInput = Pick<
+  UserPublic,
+  'email' | 'firstName' | 'lastName' | 'tenantId'
+> & {
+  password: string;
+  inviteId: string;
+};
 
 export type UsersFindAll = {
   skip?: number;
@@ -38,6 +59,7 @@ export function toUserPublic(row: User): UserPublic {
     firstName: row.firstName,
     lastName: row.lastName,
     role: row.role,
+    tenantId: row.tenantId,
     isActive: row.isActive,
     deletedAt: row.deletedAt,
     archivedAt: row.archivedAt,
@@ -62,6 +84,37 @@ export class UsersRepository {
     options?: { includeDeleted?: boolean },
   ): Promise<UserPublic | null> {
     return this.findOne({ email }, options);
+  }
+
+  async findByEmailWithPassword(
+    email: string,
+    options?: { includeDeleted?: boolean },
+  ): Promise<UserWithPassword | null> {
+    const finalWhere: Prisma.UserWhereInput = { email };
+    if (!options?.includeDeleted) {
+      finalWhere.deletedAt = null;
+    }
+
+    const row = await this.prisma.user.findFirst({
+      where: finalWhere,
+    });
+
+    return row
+      ? {
+          id: row.id,
+          email: row.email,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          password: row.password,
+          role: row.role,
+          tenantId: row.tenantId,
+          isActive: row.isActive,
+          deletedAt: row.deletedAt,
+          archivedAt: row.archivedAt,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        }
+      : null;
   }
 
   async findAll(params?: UsersFindAll): Promise<UserPublic[]> {
@@ -113,11 +166,56 @@ export class UsersRepository {
     );
   }
 
+  async createBusinessOwner(
+    data: CreateBusinessOwnerInput,
+  ): Promise<UserPublic> {
+    return this.prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: { name: data.tenantName },
+      });
+      const user = await tx.user.create({
+        data: {
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          password: data.password,
+          role: UserRole.BusinessOwner,
+          tenantId: tenant.id,
+        },
+      });
+      return toUserPublic(user);
+    });
+  }
+
+  async createStaffFromInvite(
+    data: CreateStaffFromInviteInput,
+  ): Promise<UserPublic> {
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          password: data.password,
+          role: UserRole.Staff,
+          tenantId: data.tenantId,
+        },
+      });
+      await tx.invite.update({
+        where: { id: data.inviteId },
+        data: { 
+          acceptedAt: new Date(), 
+          acceptedById: user.id 
+        },
+      });
+      return toUserPublic(user);
+    });
+  }
+
   private async findOne(
     where: Prisma.UserWhereInput,
     options?: { includeDeleted?: boolean },
   ): Promise<UserPublic | null> {
-    // Build a new where object — do not mutate the caller's argument.
     const finalWhere: Prisma.UserWhereInput = { ...where };
     if (!options?.includeDeleted) {
       finalWhere.deletedAt = null;

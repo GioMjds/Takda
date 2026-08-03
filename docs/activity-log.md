@@ -11,3 +11,10 @@
 ### Fix
 
 - Created `.npmrc` in `app/` and root with `minimum-release-age=0` to instruct pnpm to bypass the minimum release age cutoff during remote CI builds.
+
+## [2026-08-03] Define Staff Invitation Event Payload
+
+### Changes
+
+- Expanded `StaffInviteLinkEvent` payload in `src/common/events/payloads/email/staff-invite-link.event.ts` with recipient email, invite token, invite URL, role, expiration date, recipient name, inviter name, and clinic name.
+

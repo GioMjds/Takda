@@ -2,7 +2,13 @@ import { Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UsersRepository } from './users.repository';
-import type { UserPublic, UsersFindAll } from './users.repository';
+import type {
+  CreateBusinessOwnerInput,
+  CreateStaffFromInviteInput,
+  UserPublic,
+  UsersFindAll,
+  UserWithPassword,
+} from './users.repository';
 import { AuditService } from './audit.service';
 import {
   ConflictException,
@@ -36,6 +42,10 @@ export class UsersService {
 
   findByEmail(email: string): Promise<UserPublic | null> {
     return this.repo.findByEmail(email);
+  }
+
+  findByEmailWithPassword(email: string): Promise<UserWithPassword | null> {
+    return this.repo.findByEmailWithPassword(email);
   }
 
   findAll(params?: UsersFindAll): Promise<UserPublic[]> {
@@ -177,5 +187,19 @@ export class UsersService {
       actorUserId: actor.userId,
     });
     return restored;
+  }
+
+  async createBusinessOwner(
+    data: CreateBusinessOwnerInput,
+  ): Promise<UserPublic> {
+    const existing = await this.repo.findByEmail(data.email);
+    if (existing) throw new ConflictException('Email already registered');
+    return this.repo.createBusinessOwner(data);
+  }
+
+  async createStaffFromInvite(
+    data: CreateStaffFromInviteInput,
+  ): Promise<UserPublic> {
+    return this.repo.createStaffFromInvite(data);
   }
 }

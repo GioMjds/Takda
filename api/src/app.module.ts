@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { JwtModule } from '@nestjs/jwt';
+import { APP_GUARD } from '@nestjs/core';
 import {
   NodeIdempotencyModule,
   StorageAdapterEnum,
@@ -19,7 +21,6 @@ import {
   NotificationsModule,
 } from '@/modules';
 import { SharedModule } from './shared/shared.module';
-import { JwtModule } from '@nestjs/jwt';
 import { ENV } from './config';
 
 @Module({
@@ -76,6 +77,12 @@ import { ENV } from './config';
     BusinessesModule,
     QueuesModule,
     SharedModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

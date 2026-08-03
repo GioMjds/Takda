@@ -77,3 +77,13 @@ export class ValidationException extends DomainException {
     this.name = 'ValidationException';
   }
 }
+
+/**
+ * Thrown when an action is forbidden due to insufficient permissions or access rights.
+ */
+export class ForbiddenException extends DomainException {
+  constructor(message: string = "Forbidden access") {
+    super(message);
+    this.name = 'ForbiddenException';
+  }
+}

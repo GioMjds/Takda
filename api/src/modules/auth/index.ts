@@ -4,3 +4,4 @@ export * from './auth.module';
 export * from './auth.service';
 export * from './jwt.strategy';
 export * as dto from './dto';
+export * as mail from './mail';
