@@ -1,5 +1,18 @@
 import type { ZodType } from "zod";
-import { useAuthStore } from "@/stores/auth";
+import { useAuthStore } from "@/stores";
+import { refreshAccessToken } from "@/services";
+
+let refreshPromise: Promise<string> | null = null;
+
+const RETRIED_HEADER = "x-takda-retried" as const;
+
+function isAuthRequest(opts: { config?: FetchConfig }): boolean {
+  return opts.config?.auth === true;
+}
+
+function attachAuthHeader(headers: Record<string, string>, token: string) {
+  headers.authorization = `Bearer ${token}`;
+}
 
 export type HttpMethod =
   | "GET"
@@ -74,23 +87,6 @@ type WriteOptions<TBody, TResponse> = {
 
 export const DEFAULT_API_VERSION = process.env.API_VERSION || "v1";
 
-function getBaseUrl(version: string = DEFAULT_API_VERSION): string {
-  const base = process.env.API_URL;
-  if (!base) {
-    throw new ApiError("API_URL is not set", 0, null);
-  }
-  const trimmedBase = base.replace(/\/+$/u, "");
-
-  if (/\/v\d+$/i.test(trimmedBase)) {
-    return trimmedBase;
-  }
-
-  const formattedVersion = version
-    ? version.replace(/^\/+/u, "").replace(/\/+$/u, "")
-    : "";
-  return formattedVersion ? `${trimmedBase}/${formattedVersion}` : trimmedBase;
-}
-
 async function fetchFactory<TBody, TResponse>(
   method: HttpMethod,
   path: string,
@@ -98,108 +94,125 @@ async function fetchFactory<TBody, TResponse>(
     | WriteOptions<TBody, TResponse>
     | (RequestOptions<TBody, TResponse> & { body?: undefined }),
 ): Promise<TResponse> {
-  const version = opts.config?.version ?? DEFAULT_API_VERSION;
-  const base = getBaseUrl(version);
-
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  const requestPath =
-    path.startsWith("http://") || path.startsWith("https://")
-      ? path
-      : `${base}${cleanPath}`;
-  const url = new URL(requestPath);
-
-  if (opts.config?.params) {
-    for (const [key, value] of Object.entries(opts.config.params)) {
-      url.searchParams.append(key, String(value));
+  try {
+    return await executeRequest<TBody, TResponse>(method, path, opts);
+  } catch (err) {
+    if (
+      err instanceof ApiError &&
+      err.status === 401 &&
+      isAuthRequest(opts) &&
+      !(opts.config?.headers as Record<string, string> | undefined)?.[
+        RETRIED_HEADER
+      ]
+    ) {
+      // Try one refresh.
+      const newToken = await getOrStartRefresh();
+      const newHeaders: Record<string, string> = {
+        ...(opts.config?.headers as Record<string, string> | undefined),
+        [RETRIED_HEADER]: "1",
+      };
+      const retried = {
+        ...opts,
+        config: { ...opts.config, headers: newHeaders },
+      };
+      const token = useAuthStore.getState().accessToken ?? newToken;
+      attachAuthHeader(newHeaders, token);
+      return executeRequest<TBody, TResponse>(method, path, retried);
     }
+    if (err instanceof ApiError && err.status === 401) {
+      // Refresh itself failed, or second 401: sign the user out.
+      await useAuthStore
+        .getState()
+        .signOut()
+        .catch(() => undefined);
+    }
+    throw err;
   }
+}
 
-  const token = useAuthStore.getState().token;
-  const baseHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(opts.config?.auth && token ? { Authorization: `Bearer ${token}` } : {}),
+async function getOrStartRefresh(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const next = await refreshAccessToken();
+        return next.accessToken;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
+  return refreshPromise;
+}
+
+async function executeRequest<TBody, TResponse>(
+  method: HttpMethod,
+  path: string,
+  opts:
+    | WriteOptions<TBody, TResponse>
+    | (RequestOptions<TBody, TResponse> & { body?: undefined }),
+): Promise<TResponse> {
+  const url = `${process.env.API_URL}${path}`;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
     ...(opts.config?.headers as Record<string, string> | undefined),
   };
 
-  const fetchOptions: RequestInit & { next?: FetchConfig["next"] } = {
-    method,
-    headers: baseHeaders,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-    credentials: opts.config?.auth ? "include" : undefined,
-  };
-
-  if (opts.config?.cache) fetchOptions.cache = opts.config.cache;
-  if (opts.config?.next) fetchOptions.next = opts.config.next;
-
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), fetchOptions);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to connect to API";
-    const hint = message.includes("ECONNREFUSED")
-      ? `. Make sure the backend server is running at ${base}`
-      : "";
-    throw new ApiError(`Network error: ${message}${hint}`, 0, null);
+  const isWrite =
+    method !== "GET" &&
+    method !== "DELETE" &&
+    (opts as WriteOptions<TBody, TResponse>).body !== undefined;
+  if (isWrite) {
+    headers["Content-Type"] = "application/json";
+  }
+  if (opts.config?.auth) {
+    const token = useAuthStore.getState().accessToken;
+    if (token) attachAuthHeader(headers, token);
   }
 
-  const contentType = res.headers.get("content-type") || "";
-
-  if (!res.ok) {
-    if (contentType.includes("application/json")) {
-      const errorData = await res.json().catch(() => null);
-
-      const rawMessage =
-        errorData?.message ??
-        (Array.isArray(errorData?.message) ? errorData.message[0] : null);
-      const message =
-        typeof errorData?.message === "string"
-          ? errorData.message
-          : rawMessage || `Error ${res.status}`;
-      const details = errorData?.error?.details ?? errorData?.errors ?? null;
-      throw new ApiError(message, res.status, details);
-    } else {
-      const text = await res.text().catch(() => null);
-      throw new ApiError(text || `Error ${res.status}`, res.status, null);
-    }
+  const init: RequestInit = { method, headers };
+  if (isWrite) {
+    init.body = JSON.stringify((opts as WriteOptions<TBody, TResponse>).body);
   }
 
-  if (res.status === 204) {
-    const parsed = opts.response.safeParse(undefined);
-    if (!parsed.success) {
-      throw new ApiError(
-        "Response validation failed",
-        422,
-        formatIssues(parsed.error.issues),
-      );
-    }
-    return parsed.data as TResponse;
+  const response = await fetch(url, init);
+
+  if (response.status === 204) {
+    return undefined as TResponse;
   }
 
-  const json = await res.json().catch(() => null);
-  const parsed = opts.response.safeParse(json);
-  if (!parsed.success) {
+  const contentType = response.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
+  const payload = isJson ? await response.json() : await response.text();
+
+  if (!response.ok) {
+    const errPayload =
+      typeof payload === "object" && payload !== null
+        ? (payload as { message?: string; details?: Record<string, string[]> })
+        : { message: typeof payload === "string" ? payload : "Request failed" };
     throw new ApiError(
-      "Response validation failed",
-      422,
-      formatIssues(parsed.error.issues),
+      errPayload.message ?? `Request failed with status ${response.status}`,
+      response.status,
+      errPayload.details ?? null,
     );
   }
-  return parsed.data as TResponse;
-}
 
-type FormatIssues = {
-  path: PropertyKey[];
-  message: string;
-};
-
-function formatIssues(issues: FormatIssues[]): Record<string, string[]> {
-  const issueMap: Record<string, string[]> = {};
-  for (const issue of issues) {
-    const key = issue.path.map((p) => String(p)).join(".") || "_";
-    (issueMap[key] ??= []).push(issue.message);
+  // Caller may opt out of validation by passing undefined as response schema.
+  if (
+    opts.response &&
+    typeof (opts.response as { safeParse?: unknown }).safeParse === "function"
+  ) {
+    const parsed = (opts.response as ZodType<TResponse>).safeParse(payload);
+    if (!parsed.success) {
+      const details: Record<string, string[]> = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path.join(".") || "_root";
+        (details[key] ??= []).push(issue.message);
+      }
+      throw new ApiError("Response validation failed", 500, details);
+    }
+    return parsed.data;
   }
-  return issueMap;
+  return payload as TResponse;
 }
 
 export const http = {

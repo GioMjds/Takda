@@ -11,6 +11,7 @@
  *   --quiet            Suppress per-file logs (summary still prints)
  *   --force            Overwrite existing index.ts(x) files (with a .bak backup)
  *   --empty            Write empty barrels for directories with no source files
+ *   --ts-only          Only ever write index.ts barrels; never index.tsx
  *
  * Behavior:
  *   - Skips test files (*.test.ts, *.spec.ts), scratch files (*.scratch.ts),
@@ -18,6 +19,13 @@
  *   - Skips index.ts(x) itself (no self-export / circular exports).
  *   - Detects existing index file extension (.ts vs .tsx) so it writes the
  *     correct one and never produces duplicate index.ts / index.tsx pairs.
+ *   - With --ts-only, the script never writes an index.tsx; if a directory
+ *     already has an index.tsx (e.g. a route file or a hand-written dynamic
+ *     barrel), the directory is left untouched.
+ *   - Skips Expo Router app/ subtrees entirely. Any directory named `app` is
+ *     treated as an Expo Router root: nothing inside it is recursed into and
+ *     no index.ts(x) is ever written or overwritten. Use --force does not
+ *     override this.
  *   - For each subdirectory it visits:
  *       - If the subdirectory contains its own index.ts(x) (a sub-barrel),
  *         the parent re-exports the subdirectory as a namespace.
@@ -39,6 +47,7 @@ let dry = false;
 let quiet = false;
 let force = false;
 let writeEmpty = false;
+let tsOnly = false;
 
 for (let i = 0; i < args.length; i += 1) {
   const arg = args[i];
@@ -52,6 +61,8 @@ for (let i = 0; i < args.length; i += 1) {
     force = true;
   } else if (arg === '--empty') {
     writeEmpty = true;
+  } else if (arg === '--ts-only') {
+    tsOnly = true;
   } else if (arg.startsWith('--')) {
     console.error(`Unknown flag: ${arg}`);
     process.exit(2);
@@ -232,20 +243,30 @@ function writeBarrel(dir, content) {
     return;
   }
   const existingExt = detectExistingIndexExtension(dir);
-  // If a .tsx index already exists (e.g. Expo Router route), respect that and
-  // don't write a .ts twin — unless --force is set.
+  // If the directory already has an index.tsx (e.g. Expo Router route file or
+  // a hand-written dynamic-import barrel), never touch it. The user owns that
+  // file — overwriting would break the route. --force is intentionally NOT
+  // honored here.
+  if (existingExt === 'tsx') {
+    if (!quiet) console.log(`skip (existing index.tsx): ${relative(process.cwd(), dir)}`);
+    summary.skipped += 1;
+    return;
+  }
+  // If a .ts index already exists, respect that and don't write a .tsx twin —
+  // unless --force is set.
   let targetExt;
-  if (existingExt && extensions.includes(existingExt)) {
-    targetExt = existingExt;
+  if (existingExt === 'ts') {
+    targetExt = 'ts';
   } else if (existingExt) {
     // Existing index uses an extension we weren't asked to generate — leave it.
     if (!quiet) console.log(`skip (existing ${existingExt}): ${relative(process.cwd(), dir)}`);
     summary.skipped += 1;
     return;
   } else {
-    // No existing index. Prefer tsx only if any tsx files live in this dir.
+    // No existing index. Default to .ts. Only pick .tsx if --ts-only is NOT
+    // set and the directory contains real .tsx source files.
     const hasTsx = readdirSync(dir).some((n) => n.endsWith('.tsx') && isSourceFile(n));
-    targetExt = hasTsx ? 'tsx' : 'ts';
+    targetExt = !tsOnly && hasTsx ? 'tsx' : 'ts';
   }
   const target = join(dir, `index.${targetExt}`);
   if (dry) {
@@ -274,9 +295,10 @@ function writeBarrel(dir, content) {
 function writeEmptyBarrel(dir) {
   const existingExt = detectExistingIndexExtension(dir);
   if (existingExt) return; // don't disturb existing files
-  const hasTsx = readdirSync(dir).some((n) => n.endsWith('.tsx'));
-  const targetExt = hasTsx ? 'tsx' : 'ts';
-  const target = join(dir, `index.${targetExt}`);
+  // Always write index.ts for empty barrels — never index.tsx. Empty barrels
+  // are placeholders, and an empty .tsx file would conflict with the user's
+  // --ts-only / dynamic-barrel rules.
+  const target = join(dir, 'index.ts');
   const content = '// Auto-generated empty barrel. Add exports as source files appear.\n';
   if (dry) {
     console.log(`[dry] would write empty: ${target}`);
@@ -288,7 +310,23 @@ function writeEmptyBarrel(dir) {
   summary.empty += 1;
 }
 
+function isExpoRouterAppDir(dir) {
+  // A directory named `app` is treated as an Expo Router app root. Every
+  // nested file (and its `index.tsx`) is a route — never a barrel. We refuse
+  // to recurse into the subtree or write anything inside it, regardless of
+  // --force. Triggered by basename only; safe at any nesting depth.
+  return basename(dir) === 'app';
+}
+
 function walk(dir) {
+  // Hard guard: skip the entire Expo Router app/ subtree. No recursion, no
+  // barrels, no empty barrels, no --force override. Routes own those files.
+  if (isExpoRouterAppDir(dir)) {
+    if (!quiet) console.log(`skip (expo-router app/): ${relative(process.cwd(), dir)}`);
+    summary.skipped += 1;
+    return;
+  }
+
   // Always recurse into subdirectories first so sub-barrels get generated before parent runs.
   const entries = readDirSafe(dir);
   for (const e of entries) {
@@ -310,7 +348,7 @@ function walk(dir) {
 }
 
 console.log(`Generating barrels under: ${srcDir}`);
-console.log(`Extensions: ${extensions.join(', ')}  Dry: ${dry}  Force: ${force}  Empty: ${writeEmpty}`);
+console.log(`Extensions: ${extensions.join(', ')}  Dry: ${dry}  Force: ${force}  Empty: ${writeEmpty}  TsOnly: ${tsOnly}`);
 walk(srcDir);
 console.log(
   `Done. wrote=${summary.wrote}  unchanged=${summary.unchanged}  kept=${summary.kept}  ` +

@@ -7,7 +7,7 @@ import { UserPublicSchema, type UserPublic } from "./auth";
 export const CreateableRoleSchema = z.enum(["Staff", "Customer"]);
 
 export const CreateUserSchema = z.object({
-  email: z.string().email().max(254),
+  email: z.email().max(254),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters long")
@@ -29,6 +29,12 @@ export const UpdateUserSchema = z.object({
 });
 export type UpdateUserDto = z.infer<typeof UpdateUserSchema>;
 
+export const UpdateMeSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(200).optional(),
+  lastName: z.string().min(1, "Last name is required").max(200).optional(),
+});
+export type UpdateMeDto = z.infer<typeof UpdateMeSchema>;
+
 export interface FindUsersQuery {
   skip?: number;
   take?: number;
@@ -41,6 +47,13 @@ export interface FindUsersQuery {
 const usersEndpoint = createEndpoint("/users");
 
 export const usersService = {
+  updateMe: (dto: UpdateMeDto) =>
+    usersEndpoint.patch<UpdateMeDto, UserPublic>("me", {
+      body: dto,
+      response: UserPublicSchema,
+      config: { auth: true },
+    }),
+
   findAll: (query?: FindUsersQuery) =>
     usersEndpoint.get<UserPublic[]>("/", {
       response: z.array(UserPublicSchema),

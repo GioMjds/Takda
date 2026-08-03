@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createEndpoint } from "@/configs";
+import { useAuthStore } from "@/stores";
 
 export const UserRoleSchema = z.enum([
   "BusinessOwner",
@@ -121,3 +122,15 @@ export const authService = {
       config: { auth: true },
     }),
 };
+
+export async function refreshAccessToken(): Promise<AuthTokens> {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) {
+    throw new Error("No refresh token available");
+  }
+  const next = await authService.refresh({ refreshToken });
+  await useAuthStore
+    .getState()
+    .signIn(next.accessToken, next.refreshToken, next.user);
+  return next;
+}

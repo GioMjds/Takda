@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link } from "expo-router";
+import { Link, useLocalSearchParams } from "expo-router";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,58 +10,80 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { LoginSchema, authService, type LoginDto } from "@/services";
-import { useAuthStore } from "@/stores";
-import { handleActionError } from "@/configs";
+import { z } from "zod";
+import { authService } from "@/services/auth";
+import { handleActionError } from "@/configs/fetch";
 import { FormError, SubmitButton, StyledText } from "@/components";
-import { LoginError } from "./types";
+import { useAuthStore } from "@/stores";
 
-function mapLoginError(err: unknown): LoginError {
-  const mapped = handleActionError(err);
-  const status = (err as { status?: number } | null)?.status;
-  if (status === 401) {
-    return { message: "Email or password is incorrect." };
-  }
-  if (status === 429) {
-    return { message: "Too many attempts. Try again in 15 minutes." };
-  }
-  if (status === 0) {
-    return {
-      message: "Can't reach the server. Check your connection and try again.",
-    };
-  }
-  return mapped;
-}
+const ResetFormSchema = z
+  .object({
+    newPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(128),
+    confirmPassword: z.string().min(1, "Confirm your password"),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
+type ResetForm = z.infer<typeof ResetFormSchema>;
 
-export default function SignIn() {
+export default function ResetPassword() {
+  const params = useLocalSearchParams<{ token?: string }>();
+  const token = typeof params.token === "string" ? params.token : "";
+
   const [submitting, setSubmitting] = useState(false);
   const [serverMessage, setServerMessage] = useState<string | null>(null);
-  const [serverDetails, setServerDetails] = useState<Record<
-    string,
-    string[]
-  > | null>(null);
   const signIn = useAuthStore((s) => s.signIn);
 
-  const { control, handleSubmit, formState } = useForm<LoginDto>({
-    resolver: zodResolver(LoginSchema),
-    defaultValues: { email: "", password: "" },
+  const defaultValues = useMemo<ResetForm>(
+    () => ({ newPassword: "", confirmPassword: "" }),
+    [],
+  );
+
+  const { control, handleSubmit, formState } = useForm<ResetForm>({
+    resolver: zodResolver(ResetFormSchema),
+    defaultValues,
     mode: "onBlur",
   });
 
-  async function onSubmit(values: LoginDto) {
+  async function onSubmit(values: ResetForm) {
+    if (!token) return;
     setSubmitting(true);
     setServerMessage(null);
-    setServerDetails(null);
     try {
-      const result = await authService.login(values);
+      const result = await authService.resetPassword({
+        token,
+        newPassword: values.newPassword,
+      });
       await signIn(result.accessToken, result.refreshToken, result.user);
     } catch (err) {
-      const mapped = mapLoginError(err);
-      setServerMessage(mapped.message);
-      setServerDetails(mapped.details ?? null);
+      setServerMessage(handleActionError(err).message);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (!token) {
+    return (
+      <ScrollView
+        className="flex-1 bg-surface"
+        contentContainerClassName="px-6 py-16"
+      >
+        <StyledText variant="bold" className="text-2xl text-foreground">
+          Invalid reset link
+        </StyledText>
+        <Text className="mt-3 text-sm leading-6 text-foreground">
+          The reset link is missing a token. Request a new one from the forgot
+          password screen.
+        </Text>
+        <Link href="/(auth)/sign-in" className="mt-8">
+          <Text className="text-sm text-primary">Back to sign in</Text>
+        </Link>
+      </ScrollView>
+    );
   }
 
   return (
@@ -73,28 +95,26 @@ export default function SignIn() {
         contentContainerClassName="px-6 py-12"
         keyboardShouldPersistTaps="handled"
       >
-        <StyledText variant="extrabold" className="text-3xl text-foreground">
-          Sign in
+        <StyledText variant="bold" className="text-2xl text-foreground">
+          Reset your password
         </StyledText>
         <Text className="mt-2 text-sm text-foreground/60">
-          Welcome back. Sign in to manage your queue.
+          Choose a new password. You&apos;ll be signed in when it succeeds.
         </Text>
 
-        <FormError message={serverMessage} errors={serverDetails} />
+        <FormError message={serverMessage} />
 
         <Controller
           control={control}
-          name="email"
+          name="newPassword"
           render={({ field, fieldState }) => (
             <View className="mt-6">
-              <Text className="mb-1 text-sm text-foreground">Email</Text>
+              <Text className="mb-1 text-sm text-foreground">New password</Text>
               <TextInput
                 value={field.value}
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholder="you@business.com"
+                secureTextEntry
                 className="h-12 rounded-md border border-border bg-background px-3 text-base text-foreground"
               />
               {fieldState.error ? (
@@ -108,16 +128,17 @@ export default function SignIn() {
 
         <Controller
           control={control}
-          name="password"
+          name="confirmPassword"
           render={({ field, fieldState }) => (
             <View className="mt-4">
-              <Text className="mb-1 text-sm text-foreground">Password</Text>
+              <Text className="mb-1 text-sm text-foreground">
+                Confirm password
+              </Text>
               <TextInput
                 value={field.value}
                 onChangeText={field.onChange}
                 onBlur={field.onBlur}
                 secureTextEntry
-                placeholder="Your password"
                 className="h-12 rounded-md border border-border bg-background px-3 text-base text-foreground"
               />
               {fieldState.error ? (
@@ -131,22 +152,11 @@ export default function SignIn() {
 
         <View className="mt-8">
           <SubmitButton
-            label="Sign in"
+            label="Update password"
             onPress={handleSubmit(onSubmit)}
             isSubmitting={submitting}
             disabled={!formState.isValid}
           />
-        </View>
-
-        <View className="mt-6 flex-row justify-between">
-          <Link href="/(auth)/forgot-password">
-            <Text className="text-sm text-primary">Forgot password?</Text>
-          </Link>
-          <Link href="/(auth)/sign-up">
-            <Text className="text-sm text-primary">
-              Create business account
-            </Text>
-          </Link>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
