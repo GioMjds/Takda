@@ -1,45 +1,109 @@
 import { create } from "zustand";
-import { tokenStorage } from "@/storage/secure";
+import { tokenStorage, refreshTokenStorage, clearAuth } from "@/storage/secure";
+import { userCacheStorage } from "@/storage/mmkv";
+import { authService, type UserPublic, type UserRole } from "@/services/auth";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
 
-export interface AuthUser {
-  id: string;
-  email: string;
-}
-
 interface AuthState {
   status: AuthStatus;
-  token: string | null;
-  user: AuthUser | null;
-  signIn: (token: string, user: AuthUser) => Promise<void>;
+  accessToken: string | null;
+  refreshToken: string | null;
+  user: UserPublic | null;
+  signIn: (
+    accessToken: string,
+    refreshToken: string,
+    user: UserPublic,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   hydrate: () => Promise<void>;
+  refreshUser: (user: UserPublic) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   status: "loading",
-  token: null,
+  accessToken: null,
+  refreshToken: null,
   user: null,
 
-  async signIn(token, user) {
-    await tokenStorage.setToken(token);
-    set({ status: "authenticated", token, user });
+  async signIn(accessToken, refreshToken, user) {
+    await Promise.all([
+      tokenStorage.setToken(accessToken),
+      refreshTokenStorage.setRefreshToken(refreshToken),
+    ]);
+    userCacheStorage.setUser(user);
+    set({ status: "authenticated", accessToken, refreshToken, user });
   },
 
   async signOut() {
-    await tokenStorage.clear();
-    set({ status: "anonymous", token: null, user: null });
-  },
-
-  async hydrate() {
-    const token = await tokenStorage.getToken();
+    await clearAuth();
+    userCacheStorage.clearUser();
     set({
-      status: token ? "authenticated" : "anonymous",
-      token,
+      status: "anonymous",
+      accessToken: null,
+      refreshToken: null,
       user: null,
     });
   },
+
+  async hydrate() {
+    const accessToken = await tokenStorage.getToken();
+    if (!accessToken) {
+      set({
+        status: "anonymous",
+        accessToken: null,
+        refreshToken: null,
+        user: null,
+      });
+      return;
+    }
+
+    const refreshToken = await refreshTokenStorage.getRefreshToken();
+    const cached = userCacheStorage.getUser();
+    if (cached) {
+      set({
+        status: "authenticated",
+        accessToken,
+        refreshToken,
+        user: cached,
+      });
+      return;
+    }
+
+    try {
+      const fresh = await authService.me();
+      userCacheStorage.setUser(fresh);
+      set({
+        status: "authenticated",
+        accessToken,
+        refreshToken,
+        user: fresh,
+      });
+    } catch (err) {
+      const status = (err as { status?: number } | null)?.status;
+      if (status === 401) {
+        await clearAuth();
+        userCacheStorage.clearUser();
+        set({
+          status: "anonymous",
+          accessToken: null,
+          refreshToken: null,
+          user: null,
+        });
+        return;
+      }
+      set({ status: "anonymous", accessToken, refreshToken, user: null });
+    }
+  },
+
+  refreshUser(user) {
+    userCacheStorage.setUser(user);
+    set({ user });
+  },
 }));
 
-export const getAuthToken = () => useAuthStore.getState().token;
+export const useAuthRole = (): UserRole | undefined =>
+  useAuthStore((s) => s.user?.role);
+
+export const getAuthToken = (): string | null =>
+  useAuthStore.getState().accessToken;

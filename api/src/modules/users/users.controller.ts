@@ -36,6 +36,20 @@ export class UsersController {
     private readonly logger: CustomLoggerService,
   ) {}
 
+  @Get('me')
+  async findMe(@CurrentUser() actor: CurrentUserPayload) {
+    return this.users.findMe(actor);
+  }
+
+  @Patch('me')
+  @UsePipes(new ZodValidationPipe(UpdateUserSchema))
+  async updateMe(
+    @CurrentUser() actor: CurrentUserPayload,
+    @Body() dto: UpdateUserDto
+  ) {
+    return this.users.updateMe(actor, dto);
+  }
+
   @Get()
   @Roles(UserRole.BusinessOwner, UserRole.Staff)
   async findAll(

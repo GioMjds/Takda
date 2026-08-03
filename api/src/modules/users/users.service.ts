@@ -98,8 +98,7 @@ export class UsersService {
     const before = await this.repo.findById(id);
     if (!before) throw new UserNotFoundException(id);
 
-    // Hash password if present.
-    const data: Record<string, unknown> = { ...dto };
+    const data = { ...dto } satisfies Record<string, unknown>;
     if (dto.password) {
       data.password = await bcrypt.hash(dto.password, this.bcryptRounds);
     }
@@ -187,6 +186,19 @@ export class UsersService {
       actorUserId: actor.userId,
     });
     return restored;
+  }
+
+  async findMe(actor: CurrentUserPayload): Promise<UserPublic> {
+    const me = await this.repo.findById(actor.userId);
+    if (!me) throw new UserNotFoundException(actor.userId);
+    return me;
+  }
+
+  async updateMe(
+    actor: CurrentUserPayload,
+    dto: UpdateUserDto,
+  ): Promise<UserPublic> {
+    return this.updateUser(actor.userId, dto, actor);
   }
 
   async createBusinessOwner(
