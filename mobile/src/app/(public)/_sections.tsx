@@ -22,52 +22,37 @@ export function LegalSections({
   questionsEmail,
 }: LegalSectionsProps) {
   return (
-    <View className="gap-4">
+    <View className="w-full gap-4">
       {sections.map((section, index) => (
         <View
           key={section.title}
-          className="relative overflow-hidden rounded-2xl bg-surface-raised p-5"
-          style={{
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.06,
-            shadowRadius: 10,
-            elevation: 2,
-          }}
+          className="w-full rounded-xl border border-border/60 bg-surface-raised p-5"
         >
-          <View className="absolute left-0 top-0 bottom-0 w-0.5 bg-accent-500" />
-          <StyledText variant="extrabold" className="text-sm text-primary">
-            {pad2(index + 1)}.
-          </StyledText>
+          <View className="self-start rounded-md bg-primary-50 px-2 py-0.5 dark:bg-primary-950/80">
+            <StyledText variant="semibold" className="text-xs font-bold text-primary">
+              Section {pad2(index + 1)}
+            </StyledText>
+          </View>
           <StyledText
-            variant="semibold"
-            className="mt-1 text-base text-on-surface"
+            variant="extrabold"
+            className="mt-2 text-base font-bold text-on-surface tracking-tight"
           >
             {section.title}
           </StyledText>
-          <Text className="mt-2 text-sm leading-7 text-on-surface">
+          <Text className="mt-2 text-sm leading-relaxed text-on-surface-muted">
             {section.body}
           </Text>
         </View>
       ))}
 
-      <View
-        className="mt-2 rounded-2xl bg-surface-raised p-5"
-        style={{
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 1 },
-          shadowOpacity: 0.06,
-          shadowRadius: 10,
-          elevation: 2,
-        }}
-      >
+      <View className="mt-2 w-full rounded-xl border border-border/60 bg-surface-raised p-5">
         <StyledText variant="semibold" className="text-sm text-on-surface">
           {questionsTitle}
         </StyledText>
         <Text className="mt-2 text-sm leading-6 text-on-surface-muted">
           {questionsBody}{" "}
           <Text
-            className="text-primary underline"
+            className="text-primary underline font-medium"
             onPress={() => void Linking.openURL(`mailto:${questionsEmail}`)}
           >
             {questionsEmail}
@@ -77,9 +62,9 @@ export function LegalSections({
         <Link href="/(public)/welcome" asChild>
           <Pressable
             accessibilityRole="link"
-            className="mt-4 h-11 flex-row items-center gap-2 self-start rounded-full px-2 active:opacity-60"
+            className="mt-4 h-10 flex-row items-center gap-2 self-start rounded-xl bg-surface-sunken px-3 active:opacity-70"
           >
-            <ChevronLeft size={18} className="text-primary" />
+            <ChevronLeft size={16} className="text-primary" />
             <Text className="text-sm font-semibold text-primary">
               Back to Takda
             </Text>

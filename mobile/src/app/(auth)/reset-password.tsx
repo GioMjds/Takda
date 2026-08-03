@@ -53,7 +53,7 @@ function PasswordInput({
 
   return (
     <View className="gap-1.5">
-      <StyledText variant="medium" className="text-sm text-foreground">
+      <StyledText variant="medium" className="text-sm text-on-surface">
         {label}
       </StyledText>
       <View
@@ -77,7 +77,7 @@ function PasswordInput({
           secureTextEntry={!showPass}
           textContentType={textContentType}
           placeholderTextColor="#8fa89b"
-          className="flex-1 text-base text-foreground"
+          className="flex-1 text-base text-on-surface"
           style={{ fontFamily: "Manrope-Regular" }}
         />
         <Pressable
@@ -145,7 +145,7 @@ export default function ResetPassword() {
         <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-primary-100">
           <Ionicons name="checkmark-circle-outline" size={44} color="#0f7a4a" />
         </View>
-        <StyledText variant="extrabold" className="text-center text-2xl text-foreground">
+        <StyledText variant="extrabold" className="text-center text-2xl text-on-surface">
           Password updated!
         </StyledText>
         <Text className="mt-3 text-center text-sm text-on-surface-muted" style={{ fontFamily: "Manrope-Regular" }}>
@@ -161,7 +161,7 @@ export default function ResetPassword() {
         <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-surface-sunken">
           <Ionicons name="alert-circle-outline" size={40} color="#b3261e" />
         </View>
-        <StyledText variant="extrabold" className="text-center text-2xl text-foreground">
+        <StyledText variant="extrabold" className="text-center text-2xl text-on-surface">
           Invalid reset link
         </StyledText>
         <Text className="mt-3 text-center text-sm leading-6 text-on-surface-muted" style={{ fontFamily: "Manrope-Regular" }}>
@@ -202,7 +202,7 @@ export default function ResetPassword() {
         >
           <Ionicons name="arrow-back" size={20} color="#0f1f17" />
         </Pressable>
-        <StyledText variant="extrabold" className="text-xl text-foreground">
+        <StyledText variant="extrabold" className="text-xl text-on-surface">
           New password
         </StyledText>
       </View>
@@ -216,7 +216,7 @@ export default function ResetPassword() {
           <Ionicons name="shield-checkmark-outline" size={28} color="#0f7a4a" />
         </View>
 
-        <StyledText variant="bold" className="text-lg text-foreground">
+        <StyledText variant="bold" className="text-lg text-on-surface">
           Set your new password
         </StyledText>
         <Text className="mt-1 text-sm leading-6 text-on-surface-muted" style={{ fontFamily: "Manrope-Regular" }}>

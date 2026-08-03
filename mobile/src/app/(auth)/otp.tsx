@@ -47,7 +47,7 @@ function OtpBox({
       className={`h-14 w-12 items-center justify-center rounded-xl border-2 ${borderColor} ${bgColor}`}
     >
       {value ? (
-        <StyledText variant="extrabold" className="text-2xl text-foreground">
+        <StyledText variant="extrabold" className="text-2xl text-on-surface">
           {value}
         </StyledText>
       ) : isFocused ? (
@@ -135,7 +135,7 @@ export default function Otp() {
         >
           <Ionicons name="arrow-back" size={20} color="#0f1f17" />
         </Pressable>
-        <StyledText variant="extrabold" className="text-xl text-foreground">
+        <StyledText variant="extrabold" className="text-xl text-on-surface">
           Verify your email
         </StyledText>
       </View>
@@ -146,13 +146,13 @@ export default function Otp() {
           <Ionicons name="mail-open-outline" size={28} color="#0f7a4a" />
         </View>
 
-        <StyledText variant="bold" className="text-lg text-foreground">
+        <StyledText variant="bold" className="text-lg text-on-surface">
           Enter the 6-digit code
         </StyledText>
         {email ? (
           <Text className="mt-1 text-sm leading-6 text-on-surface-muted" style={{ fontFamily: "Manrope-Regular" }}>
             Sent to{" "}
-            <Text className="text-foreground" style={{ fontFamily: "Manrope-SemiBold" }}>
+            <Text className="text-on-surface" style={{ fontFamily: "Manrope-SemiBold" }}>
               {email}
             </Text>
             . It expires in 10 minutes.

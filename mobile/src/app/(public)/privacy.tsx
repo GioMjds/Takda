@@ -1,4 +1,4 @@
-import { PublicScreen, StyledText } from "@/components";
+import { PublicScreen } from "@/components";
 import { LegalSections } from "./_sections";
 import type { Section } from "./_types";
 
@@ -45,9 +45,6 @@ export default function Privacy() {
       subtitle={`Last updated · ${LAST_UPDATED}`}
       showBackButton
     >
-      <StyledText variant="semibold" className="text-sm text-primary">
-        {LAST_UPDATED}
-      </StyledText>
       <LegalSections
         sections={SECTIONS}
         questionsTitle="Questions about your data?"

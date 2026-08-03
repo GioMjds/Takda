@@ -45,7 +45,7 @@ function NameInput({
 
   return (
     <View className="gap-1.5">
-      <StyledText variant="medium" className="text-sm text-foreground">
+      <StyledText variant="medium" className="text-sm text-on-surface">
         {label}
       </StyledText>
       <View
@@ -69,7 +69,7 @@ function NameInput({
           autoCapitalize="words"
           textContentType="name"
           placeholderTextColor="#8fa89b"
-          className="flex-1 text-base text-foreground"
+          className="flex-1 text-base text-on-surface"
           style={{ fontFamily: "Manrope-Regular" }}
         />
       </View>

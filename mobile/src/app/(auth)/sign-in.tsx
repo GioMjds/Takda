@@ -71,7 +71,7 @@ function AuthInput({
 
   return (
     <View className="gap-1.5">
-      <StyledText variant="medium" className="text-sm text-foreground">
+      <StyledText variant="medium" className="text-sm text-on-surface">
         {label}
       </StyledText>
       <View
@@ -92,7 +92,7 @@ function AuthInput({
           placeholder={placeholder}
           placeholderTextColor="#8fa89b"
           textContentType={textContentType}
-          className="flex-1 text-base text-foreground"
+          className="flex-1 text-base text-on-surface"
           style={{ fontFamily: "Manrope-Regular" }}
         />
         {isPassword ? (
@@ -208,7 +208,7 @@ export default function SignIn() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <StyledText variant="extrabold" className="text-2xl text-foreground">
+        <StyledText variant="extrabold" className="text-2xl text-on-surface">
           Welcome back
         </StyledText>
         <Text className="mt-1 text-sm text-on-surface-muted" style={{ fontFamily: "Manrope-Regular" }}>

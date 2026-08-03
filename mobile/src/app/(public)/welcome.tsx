@@ -18,6 +18,8 @@ type ValueCard = {
   title: string;
   description: string;
   label: string;
+  badgeBg: string;
+  iconColor: string;
 };
 
 const VALUE_CARDS = [
@@ -26,18 +28,24 @@ const VALUE_CARDS = [
     title: "Book a slot",
     description: "Pick a time, drop your name + phone.",
     label: "Book a slot. Pick a time, drop your name and phone.",
+    badgeBg: "bg-primary-50 dark:bg-primary-950/80",
+    iconColor: "text-primary-600 dark:text-primary-400",
   },
   {
     Icon: QueueListGlyph,
     title: "Live queue",
     description: "See your position update in real time.",
     label: "Live queue. See your position update in real time.",
+    badgeBg: "bg-accent-100 dark:bg-accent-900/40",
+    iconColor: "text-accent-700 dark:text-accent-300",
   },
   {
     Icon: BellGlyph,
     title: "SMS reminders",
     description: "No one forgets, no-shows drop.",
     label: "SMS reminders. No one forgets and no-shows drop.",
+    badgeBg: "bg-info/10 dark:bg-info/20",
+    iconColor: "text-info",
   },
 ] satisfies ValueCard[];
 
@@ -54,55 +62,55 @@ export default function Welcome() {
     <PublicScreen>
       <View className="items-center">
         <StyledText
-          variant="semibold"
+          variant="extrabold"
           className="text-2xl tracking-tight text-primary"
         >
           Takda
         </StyledText>
       </View>
 
-      <View className="mt-8 items-center">
+      <View className="mt-6 items-center">
         <QueueScene size={200} className="text-primary" />
         <View className="absolute" style={{ top: 24, right: 72 }}>
-          <View className="h-2 w-2 rounded-full bg-accent-500" />
+          <View className="h-2.5 w-2.5 rounded-full bg-accent-500 shadow-sm" />
         </View>
       </View>
 
-      <View className="mt-6 items-center">
+      <View className="mt-6 w-full items-center">
         <StyledText
           variant="extrabold"
-          className="text-center text-4xl leading-tight text-on-surface"
+          className="w-full text-center text-3xl leading-snug tracking-tight text-on-surface"
           accessibilityRole="header"
         >
           Skip the line.
         </StyledText>
         <StyledText
           variant="extrabold"
-          className="mt-1 text-center text-4xl leading-tight text-on-surface"
+          className="mt-0.5 w-full text-center text-3xl leading-snug tracking-tight text-on-surface"
           accessibilityRole="header"
         >
           Book in 10 seconds.
         </StyledText>
-        <Text className="mt-3 px-2 text-center text-base leading-6 text-on-surface-muted">
+        <Text className="mt-3 w-full px-2 text-center text-base leading-relaxed text-on-surface-muted">
           Run your walk-in queue. Customers scan, book, and show up. You keep
           the line moving.
         </Text>
       </View>
 
-      <View className="mt-10 w-full gap-3">
+      <View className="mt-8 w-full gap-3">
         <Link href="/(auth)/sign-in" asChild>
           <Pressable
             accessibilityRole="button"
-            className="h-14 w-full flex-row items-center justify-center gap-2 rounded-2xl bg-primary active:opacity-90"
+            className="h-12 w-full flex-row items-center justify-center gap-2 rounded-xl bg-primary active:opacity-90 shadow-sm"
           >
-            <Text className="text-base font-semibold text-white">Sign in</Text>
+            <Text className="text-base font-bold text-white">Sign in</Text>
             <ChevronRight size={18} className="text-white" />
           </Pressable>
         </Link>
         <Link href="/(auth)/sign-up" asChild>
           <Pressable
             accessibilityRole="button"
-            className="h-14 w-full items-center justify-center rounded-2xl border border-border bg-surface-raised active:opacity-90"
+            className="h-12 w-full items-center justify-center rounded-xl border border-border bg-surface-raised active:opacity-90"
           >
             <Text className="text-base font-semibold text-on-surface">
               Create a business account
@@ -111,50 +119,53 @@ export default function Welcome() {
         </Link>
       </View>
 
-      <View className="mt-8 gap-3">
-        {VALUE_CARDS.map(({ Icon, title, description, label }) => (
-          <View
-            key={title}
-            accessibilityRole="summary"
-            accessibilityLabel={label}
-            className="flex-row items-center gap-4 rounded-xl bg-surface-raised p-4"
-            style={{
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.06,
-              shadowRadius: 8,
-              elevation: 2,
-            }}
-          >
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-accent-100">
-              <Icon size={20} className="text-accent-700" />
-            </View>
-            <View className="flex-1">
-              <StyledText
-                variant="semibold"
-                className="text-sm text-on-surface"
+      <View className="mt-8 w-full gap-3">
+        {VALUE_CARDS.map(
+          ({ Icon, title, description, label, badgeBg, iconColor }) => (
+            <View
+              key={title}
+              accessibilityRole="summary"
+              accessibilityLabel={label}
+              className="w-full flex-row items-center gap-4 rounded-xl border border-border/60 bg-surface-raised p-4"
+            >
+              <View
+                className={`h-10 w-10 shrink-0 items-center justify-center rounded-xl ${badgeBg}`}
               >
-                {title}
-              </StyledText>
-              <Text className="mt-0.5 text-xs leading-5 text-on-surface-muted">
-                {description}
-              </Text>
+                <Icon size={20} className={iconColor} />
+              </View>
+              <View className="flex-1 min-w-0">
+                <StyledText
+                  variant="semibold"
+                  className="text-sm font-semibold text-on-surface"
+                >
+                  {title}
+                </StyledText>
+                <Text className="mt-0.5 text-xs leading-5 text-on-surface-muted">
+                  {description}
+                </Text>
+              </View>
             </View>
-          </View>
-        ))}
+          ),
+        )}
       </View>
 
       <View className="mt-10 flex-row items-center justify-center gap-6 pb-8">
         <Link href="/(public)/about">
-          <Text className="text-sm text-on-surface-muted">About</Text>
+          <Text className="text-sm font-medium text-on-surface-muted hover:text-primary">
+            About
+          </Text>
         </Link>
-        <Text className="text-sm text-on-surface-muted">·</Text>
+        <Text className="text-sm text-on-surface-muted/40">·</Text>
         <Link href="/(public)/terms">
-          <Text className="text-sm text-on-surface-muted">Terms</Text>
+          <Text className="text-sm font-medium text-on-surface-muted hover:text-primary">
+            Terms
+          </Text>
         </Link>
-        <Text className="text-sm text-on-surface-muted">·</Text>
+        <Text className="text-sm text-on-surface-muted/40">·</Text>
         <Link href="/(public)/privacy">
-          <Text className="text-sm text-on-surface-muted">Privacy</Text>
+          <Text className="text-sm font-medium text-on-surface-muted hover:text-primary">
+            Privacy
+          </Text>
         </Link>
       </View>
     </PublicScreen>

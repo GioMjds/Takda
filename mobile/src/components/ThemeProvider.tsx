@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Appearance, useColorScheme } from "react-native";
+import { Appearance, Platform, useColorScheme } from "react-native";
 import * as NavigationBar from "expo-navigation-bar";
 import { StatusBar } from "expo-status-bar";
 import { normalizeSystem, useThemeStore } from "@/stores/theme";
@@ -19,7 +19,9 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   }, [system, setSystem]);
 
   useEffect(() => {
-    NavigationBar.setStyle(resolved === "dark" ? "light" : "dark");
+    if (Platform.OS === "android") {
+      void NavigationBar.setStyle(resolved === "dark" ? "light" : "dark");
+    }
   }, [resolved]);
 
   return (

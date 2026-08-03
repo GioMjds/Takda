@@ -29,26 +29,31 @@ export function PublicScreen({
     <SafeAreaView className="flex-1 bg-surface" edges={["bottom"]}>
       <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
-        className="flex-1"
-        contentContainerClassName="px-6 pb-24 pt-12 max-w-md mx-auto w-full"
-        contentContainerStyle={{ paddingTop: insets.top + 48 }}
+        className="flex-1 w-full"
+        contentContainerClassName="px-6 pb-24 w-full"
+        contentContainerStyle={{
+          paddingTop: insets.top + (showBackButton ? 56 : 24),
+          maxWidth: 480,
+          width: "100%",
+          alignSelf: "center",
+        }}
       >
         {showBackButton ? (
           <Pressable
             onPress={() => router.back()}
             accessibilityRole="button"
             accessibilityLabel="Back"
-            className="absolute left-4 z-10 h-11 w-11 items-center justify-center rounded-full active:opacity-60"
+            className="absolute left-4 z-10 h-10 w-10 items-center justify-center rounded-full bg-surface-sunken active:opacity-60"
             style={{ top: insets.top + 8 }}
           >
-            <ChevronLeft size={24} className="text-on-surface-muted" />
+            <ChevronLeft size={22} className="text-on-surface-muted" />
           </Pressable>
         ) : null}
 
         {eyebrow ? (
           <StyledText
-            variant="extrabold"
-            className="text-sm tracking-wide text-primary uppercase"
+            variant="semibold"
+            className="text-xs font-semibold text-primary uppercase"
           >
             {eyebrow}
           </StyledText>
@@ -57,19 +62,19 @@ export function PublicScreen({
         {title ? (
           <StyledText
             variant="extrabold"
-            className="mt-2 text-4xl leading-tight text-on-surface"
+            className="mt-1 text-3xl leading-tight tracking-tight text-on-surface"
           >
             {title}
           </StyledText>
         ) : null}
 
         {subtitle ? (
-          <Text className="mt-3 text-base leading-6 text-on-surface-muted">
+          <Text className="mt-2 text-sm leading-6 text-on-surface-muted">
             {subtitle}
           </Text>
         ) : null}
 
-        <View className="mt-8">{children}</View>
+        <View className="mt-6 w-full">{children}</View>
       </ScrollView>
     </SafeAreaView>
   );

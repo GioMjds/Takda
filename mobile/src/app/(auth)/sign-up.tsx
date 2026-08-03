@@ -97,7 +97,7 @@ function AuthInput({
 
   return (
     <View className="gap-1.5">
-      <StyledText variant="medium" className="text-sm text-foreground">
+      <StyledText variant="medium" className="text-sm text-on-surface">
         {label}
       </StyledText>
       <View
@@ -118,7 +118,7 @@ function AuthInput({
           placeholder={placeholder}
           placeholderTextColor="#8fa89b"
           textContentType={textContentType}
-          className="flex-1 text-base text-foreground"
+          className="flex-1 text-base text-on-surface"
           style={{ fontFamily: "Manrope-Regular" }}
         />
         {isPassword ? (
@@ -232,7 +232,7 @@ export default function SignUp() {
         >
           <Ionicons name="arrow-back" size={20} color="#0f1f17" />
         </Pressable>
-        <StyledText variant="extrabold" className="text-xl text-foreground">
+        <StyledText variant="extrabold" className="text-xl text-on-surface">
           Create your business
         </StyledText>
       </View>

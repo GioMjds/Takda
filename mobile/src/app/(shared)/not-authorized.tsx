@@ -27,12 +27,12 @@ export default function NotAuthorized() {
       className="flex-1 bg-surface px-6"
       contentContainerClassName="items-center justify-center py-16"
     >
-      <StyledText variant="bold" className="text-2xl text-foreground">
+      <StyledText variant="bold" className="text-2xl text-on-surface">
         Not authorized
       </StyledText>
       <StyledText
         variant="light"
-        className="mt-3 text-center text-sm text-foreground"
+        className="mt-3 text-center text-sm text-on-surface"
       >
         Your account type isn&apos;t supported on this app. Sign out and sign in
         with a different account to continue.

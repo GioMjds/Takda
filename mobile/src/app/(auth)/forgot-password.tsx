@@ -77,17 +77,17 @@ export default function ForgotPassword() {
           <View className="mb-6 h-20 w-20 items-center justify-center rounded-full bg-primary-100">
             <Ionicons name="mail-open-outline" size={40} color="#0f7a4a" />
           </View>
-          <StyledText variant="extrabold" className="text-center text-2xl text-foreground">
+          <StyledText variant="extrabold" className="text-center text-2xl text-on-surface">
             Check your inbox
           </StyledText>
           <Text className="mt-3 text-center text-sm leading-6 text-on-surface-muted" style={{ fontFamily: "Manrope-Regular" }}>
             If an account exists for{" "}
-            <Text className="text-foreground" style={{ fontFamily: "Manrope-SemiBold" }}>
+            <Text className="text-on-surface" style={{ fontFamily: "Manrope-SemiBold" }}>
               {maskEmail(sentTo)}
             </Text>
             {", "}we&apos;ve sent password reset instructions.{"\n"}
             The link expires in{" "}
-            <Text className="text-foreground" style={{ fontFamily: "Manrope-SemiBold" }}>
+            <Text className="text-on-surface" style={{ fontFamily: "Manrope-SemiBold" }}>
               15 minutes
             </Text>
             .
@@ -139,7 +139,7 @@ export default function ForgotPassword() {
         >
           <Ionicons name="arrow-back" size={20} color="#0f1f17" />
         </Pressable>
-        <StyledText variant="extrabold" className="text-xl text-foreground">
+        <StyledText variant="extrabold" className="text-xl text-on-surface">
           Reset password
         </StyledText>
       </View>
@@ -154,7 +154,7 @@ export default function ForgotPassword() {
           <Ionicons name="lock-closed-outline" size={28} color="#0f7a4a" />
         </View>
 
-        <StyledText variant="bold" className="text-lg text-foreground">
+        <StyledText variant="bold" className="text-lg text-on-surface">
           Forgot your password?
         </StyledText>
         <Text className="mt-1 text-sm leading-6 text-on-surface-muted" style={{ fontFamily: "Manrope-Regular" }}>
@@ -168,7 +168,7 @@ export default function ForgotPassword() {
         ) : null}
 
         <View className="mt-6 gap-1.5">
-          <StyledText variant="medium" className="text-sm text-foreground">
+          <StyledText variant="medium" className="text-sm text-on-surface">
             Email address
           </StyledText>
           <Controller
@@ -205,7 +205,7 @@ export default function ForgotPassword() {
                     placeholder="you@business.com"
                     placeholderTextColor="#8fa89b"
                     textContentType="emailAddress"
-                    className="flex-1 text-base text-foreground"
+                    className="flex-1 text-base text-on-surface"
                     style={{ fontFamily: "Manrope-Regular" }}
                   />
                 </View>
